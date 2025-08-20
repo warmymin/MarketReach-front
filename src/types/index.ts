@@ -45,12 +45,13 @@ export interface TargetingLocation {
 export interface Campaign {
   id: number;
   name: string;
+  message: string;
   description?: string;
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED';
-  targetingLocationId: number;
-  companyId: number;
+  targetingLocationId?: number;
+  companyId?: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // 발송 타입

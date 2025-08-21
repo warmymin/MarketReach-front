@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit, Trash2, Send, CheckCircle, AlertCircle, Clock, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Send, CheckCircle, AlertCircle, Clock, X, Upload, Image as ImageIcon, Target, Send as SendIcon, BarChart3 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -371,6 +371,34 @@ const CampaignCard: React.FC<{
   onDelete: (id: string) => void;
   onSend: (id: string) => void;
 }> = ({ campaign, onEdit, onDelete, onSend }) => {
+  const [stats, setStats] = useState<{
+    targetingLocationName?: string;
+    targetingRadiusM?: number;
+    totalDeliveries?: number;
+    successfulDeliveries?: number;
+    successRate?: number;
+  }>({});
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // 캠페인 통계 정보 로드
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
+        const response = await fetch(`http://localhost:8084/api/campaigns/${campaign.id}/stats`);
+        const data = await response.json();
+        if (data.success) {
+          setStats(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch campaign stats:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+  }, [campaign.id]);
 
   const statusColors = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -386,6 +414,44 @@ const CampaignCard: React.FC<{
     COMPLETED: '발송 완료',
     PAUSED: '일시정지',
     CANCELLED: '취소됨',
+  };
+
+  // 안전한 날짜 포맷팅 함수
+  const formatDate = (dateInput: any) => {
+    try {
+      if (!dateInput) {
+        return '날짜 없음';
+      }
+      
+      let date: Date;
+      
+      // 배열 형태의 날짜 데이터 처리 (백엔드에서 오는 형식)
+      if (Array.isArray(dateInput)) {
+        // [year, month, day, hour, minute, second, nano] 형태
+        const [year, month, day, hour, minute, second] = dateInput;
+        date = new Date(year, month - 1, day, hour, minute, second); // month는 0-based
+      } else if (typeof dateInput === 'string') {
+        // 문자열 형태의 날짜
+        date = new Date(dateInput);
+      } else {
+        return '날짜 없음';
+      }
+      
+      if (isNaN(date.getTime())) {
+        return '날짜 없음';
+      }
+      
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Date parsing error:', error, dateInput);
+      return '날짜 없음';
+    }
   };
 
   return (
@@ -416,10 +482,56 @@ const CampaignCard: React.FC<{
           </div>
           <p className="text-gray-600 mb-2">{campaign.message}</p>
           {campaign.description && (
-            <p className="text-gray-500 text-sm mb-4">{campaign.description}</p>
+            <p className="text-gray-500 text-sm mb-2">{campaign.description}</p>
           )}
-          <div className="text-sm text-gray-500">
-            생성일: {new Date(campaign.createdAt).toLocaleDateString('ko-KR')}
+          <div className="space-y-1 text-sm text-gray-500">
+            <div>생성일: {formatDate(campaign.createdAt)}</div>
+          </div>
+
+          {/* 통계 정보 섹션 */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-3 gap-4">
+              {/* 타겟팅 정보 */}
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Target className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {loadingStats ? '로딩 중...' : (stats.targetingLocationName || '타겟팅 없음')}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {stats.targetingRadiusM ? `반경: ${stats.targetingRadiusM}m` : '타겟팅'}
+                  </div>
+                </div>
+              </div>
+
+              {/* 발송 건수 */}
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <SendIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {loadingStats ? '...' : (stats.totalDeliveries || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">발송 건수</div>
+                </div>
+              </div>
+
+              {/* 성공률 */}
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {loadingStats ? '...' : (stats.successRate ? `${Math.round(stats.successRate)}%` : '0%')}
+                  </div>
+                  <div className="text-xs text-gray-500">성공률</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

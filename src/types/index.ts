@@ -60,6 +60,13 @@ export interface Campaign {
   createdAt: string;
   updatedAt?: string;
   deliveries?: Delivery[];
+  
+  // 통계 정보
+  targetingLocationName?: string;
+  targetingRadiusM?: number;
+  totalDeliveries?: number;
+  successfulDeliveries?: number;
+  successRate?: number;
 }
 
 // 발송 타입
@@ -67,7 +74,7 @@ export interface Delivery {
   id: string;
   campaignId?: string;
   customerId?: string;
-  status: 'PENDING' | 'SENT' | 'FAILED';
+  status: 'PENDING' | 'SENT' | 'SUCCESS' | 'FAILED';
   messageTextSent?: string;
   errorCode?: string;
   sentAt?: string;

@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { MapPin, Navigation, Target, Users, Map, Save, ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
-import { KakaoMap, KakaoLatLng, KakaoMarker, KakaoCircle, KakaoGeocoder } from '@/types/kakao-maps';
 
 interface LocationData {
   name: string;
@@ -27,147 +26,169 @@ const QUICK_LOCATIONS: LocationData[] = [
 
 const TargetingMapPage: React.FC = () => {
   const router = useRouter();
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<KakaoMap | null>(null);
-  const [marker, setMarker] = useState<KakaoMarker | null>(null);
-  const [circle, setCircle] = useState<KakaoCircle | null>(null);
-  const [geocoder, setGeocoder] = useState<KakaoGeocoder | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   
-  const [centerLat, setCenterLat] = useState(37.5665);
-  const [centerLng, setCenterLng] = useState(126.9780);
+  // 지도 상태
+  const [center, setCenter] = useState({ lat: 37.5665, lng: 126.9780 });
   const [radius, setRadius] = useState(1000);
   const [address, setAddress] = useState('');
   const [coverageArea, setCoverageArea] = useState(0);
   const [estimatedReach, setEstimatedReach] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 지도 객체 참조
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
 
-
-  // Kakao Maps SDK 로드 (공식 문서 방식)
+  // Kakao Maps SDK 로드
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    console.log('=== 타겟팅 맵 초기화 ===');
-    console.log('1. 컴포넌트 마운트됨');
-    console.log('2. mapRef.current:', mapRef.current);
-
     const loadKakaoMap = () => {
       // 이미 로드되어 있는지 확인
       if (window.kakao && window.kakao.maps) {
-        console.log('3. Kakao Maps SDK가 이미 로드되어 있음');
-        initMap();
+        console.log('✅ Kakao Maps SDK가 이미 로드되어 있음');
+        // SDK가 이미 로드되어 있으면 지도 초기화는 별도 useEffect에서 처리
+        setIsLoading(false);
         return;
       }
 
-      console.log('3. Kakao Maps SDK 로드 시작');
-
+      console.log('🔄 Kakao Maps SDK 로드 시작');
       const script = document.createElement('script');
       script.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=7129a6af85bdf28f0c5c1733ea1afb07&autoload=false';
-      script.async = false;
       
       script.onload = () => {
-        console.log('4. ✅ 스크립트 로드 성공');
-        
-        // Kakao Maps SDK 로드
+        console.log('✅ 스크립트 로드 성공');
         if (window.kakao && window.kakao.maps) {
           window.kakao.maps.load(() => {
-            console.log('5. ✅ Kakao Maps SDK 로드 완료');
+            console.log('✅ Kakao Maps SDK 로드 완료');
             setIsLoading(false);
-            initMap();
           });
-        } else {
-          console.error('4. ❌ kakao 객체를 찾을 수 없습니다');
-          setIsLoading(false);
         }
       };
       
       script.onerror = (error) => {
-        console.error('4. ❌ 스크립트 로드 실패:', error);
+        console.error('❌ 스크립트 로드 실패:', error);
         setIsLoading(false);
       };
       
       document.head.appendChild(script);
     };
 
-    // 즉시 실행
     loadKakaoMap();
   }, []);
 
-  // 지도 초기화 (공식 문서 방식)
-  const initMap = () => {
+  // 지도 초기화 (컴포넌트 마운트 후 실행)
+  useEffect(() => {
+    if (!isLoading && mapContainerRef.current && window.kakao?.maps) {
+      console.log('🗺️ 지도 초기화 시작 (마운트 후)');
+      initMap();
+    }
+  }, [isLoading]);
+
+  // 원 재생성 함수 (기본)
+  const recreateCircle = () => {
+    if (!mapRef.current || !window.kakao?.maps) return;
+    
     try {
-      console.log('6. 🗺️ 지도 초기화 시작...');
+      console.log('🔄 원 재생성 시도:', { center, radius });
       
-      // kakao 객체 확인
-      if (!window.kakao?.maps) {
-        console.error('6. ❌ Kakao Maps SDK가 로드되지 않았습니다.');
-        return;
+      // 기존 원 제거
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+        console.log('✅ 기존 원 제거 완료');
       }
       
-      console.log('7. ✅ Kakao Maps SDK 확인됨');
-      console.log('8. mapRef.current:', mapRef.current);
+      // 새 원 생성
+      const circle = new window.kakao.maps.Circle({
+        center: new window.kakao.maps.LatLng(center.lat, center.lng),
+        radius: radius,
+        strokeWeight: 3,
+        strokeColor: '#FF0000',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid',
+        fillColor: '#FF0000',
+        fillOpacity: 0.3,
+        map: mapRef.current
+      });
       
-      // 컨테이너 확인
-      if (!mapRef.current) {
-        console.log('8. ⚠️ mapRef가 null입니다. 100ms 후 재시도...');
-        setTimeout(() => {
-          initMap();
-        }, 100);
-        return;
+      circleRef.current = circle;
+      console.log('✅ 원 재생성 완료:', circle);
+      console.log('원이 지도에 표시됨:', circle.getMap());
+    } catch (error) {
+      console.error('❌ 원 재생성 실패:', error);
+    }
+  };
+
+  // 원 재생성 함수 (위치 지정)
+  const recreateCircleAtPosition = (lat: number, lng: number) => {
+    if (!mapRef.current || !window.kakao?.maps) return;
+    
+    try {
+      console.log('🔄 원 재생성 시도 (위치 지정):', { lat, lng, radius });
+      
+      // 기존 원 제거
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+        console.log('✅ 기존 원 제거 완료');
       }
       
-      console.log('9. ✅ 지도 컨테이너 확인됨, 지도 생성 시작...');
+      // 새 원 생성
+      const circle = new window.kakao.maps.Circle({
+        center: new window.kakao.maps.LatLng(lat, lng),
+        radius: radius,
+        strokeWeight: 3,
+        strokeColor: '#FF0000',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid',
+        fillColor: '#FF0000',
+        fillOpacity: 0.3,
+        map: mapRef.current
+      });
       
-      // 지도 생성 (공식 문서 방식)
-      const container = mapRef.current;
+      circleRef.current = circle;
+      console.log('✅ 원 재생성 완료 (위치 지정):', circle);
+      console.log('원이 지도에 표시됨:', circle.getMap());
+    } catch (error) {
+      console.error('❌ 원 재생성 실패 (위치 지정):', error);
+    }
+  };
+
+  // 지도 초기화
+  const initMap = () => {
+    console.log('🗺️ 지도 초기화 시작');
+    
+    try {
+      const container = mapContainerRef.current!;
+      console.log('컨테이너 크기:', container.offsetWidth, 'x', container.offsetHeight);
+      
       const options = {
-        center: new window.kakao.maps.LatLng(centerLat, centerLng),
+        center: new window.kakao.maps.LatLng(center.lat, center.lng),
         level: 3
       };
       
-      console.log('10. 지도 생성 시도:', { container, options });
-      const kakaoMap = new window.kakao.maps.Map(container, options);
-      console.log('10. ✅ 지도 생성 완료:', kakaoMap);
-      setMap(kakaoMap);
-
-      // 지오코더 초기화 (안전하게)
-      try {
-        if (window.kakao.maps.services && window.kakao.maps.services.Geocoder) {
-          const kakaoGeocoder = new window.kakao.maps.services.Geocoder();
-          setGeocoder(kakaoGeocoder);
-          console.log('10.1. ✅ 지오코더 초기화 완료');
-        } else {
-          console.log('10.1. ⚠️ 지오코더 서비스가 아직 로드되지 않음');
-        }
-      } catch (error) {
-        console.log('10.1. ⚠️ 지오코더 초기화 실패:', error);
-      }
-
-      // 마커 생성 (안전하게)
-      try {
-        console.log('10.2. 마커 생성 시도:', { centerLat, centerLng, map: !!kakaoMap });
-        const markerPosition = new window.kakao.maps.LatLng(centerLat, centerLng);
-        console.log('10.2. 마커 위치:', markerPosition);
-        
-        const kakaoMarker = new window.kakao.maps.Marker({
-          position: markerPosition,
-          map: kakaoMap
-        });
-        setMarker(kakaoMarker);
-        console.log('10.2. ✅ 마커 생성 완료:', kakaoMarker);
-        console.log('10.2. 마커가 지도에 표시됨:', kakaoMarker.getMap());
-      } catch (error) {
-        console.log('10.2. ⚠️ 마커 생성 실패:', error);
-      }
-
+      console.log('지도 옵션:', options);
+      const map = new window.kakao.maps.Map(container, options);
+      mapRef.current = map;
+      console.log('✅ 지도 객체 생성 완료');
+      
+      // 마커 생성
+      const marker = new window.kakao.maps.Marker({
+        position: new window.kakao.maps.LatLng(center.lat, center.lng),
+        map: map
+      });
+      markerRef.current = marker;
+      console.log('✅ 마커 생성 완료');
+      
       // 원 생성 (안전하게)
       try {
-        console.log('10.3. 원 생성 시도:', { centerLat, centerLng, radius, map: !!kakaoMap });
-        const circleCenter = new window.kakao.maps.LatLng(centerLat, centerLng);
-        console.log('10.3. 원 중심점:', circleCenter);
+        console.log('원 생성 시도:', {
+          center: { lat: center.lat, lng: center.lng },
+          radius: radius,
+          map: !!map
+        });
         
-        const kakaoCircle = new window.kakao.maps.Circle({
-          center: circleCenter,
+        const circle = new window.kakao.maps.Circle({
+          center: new window.kakao.maps.LatLng(center.lat, center.lng),
           radius: radius,
           strokeWeight: 3,
           strokeColor: '#FF0000',
@@ -175,207 +196,159 @@ const TargetingMapPage: React.FC = () => {
           strokeStyle: 'solid',
           fillColor: '#FF0000',
           fillOpacity: 0.3,
-          map: kakaoMap
+          map: map
         });
-        setCircle(kakaoCircle);
-        console.log('10.3. ✅ 원 생성 완료:', kakaoCircle);
-        console.log('10.3. 원이 지도에 표시됨:', kakaoCircle.getMap());
-      } catch (error) {
-        console.log('10.3. ⚠️ 원 생성 실패:', error);
-      }
-
-      // 지도 클릭 이벤트 (안전하게)
-      try {
-        const clickListener = (mouseEvent: any) => {
-          console.log('🗺️ 지도 클릭됨!');
-          console.log('마우스 이벤트:', mouseEvent);
-          
-          if (mouseEvent && mouseEvent.latLng) {
-            const latlng = mouseEvent.latLng;
-            const lat = latlng.getLat();
-            const lng = latlng.getLng();
-            console.log('📍 클릭한 위치:', lat, lng);
-            
-            // 즉시 중심점 업데이트
-            setCenterLat(lat);
-            setCenterLng(lng);
-            
-            // 마커와 원 업데이트
-            if (marker && circle && map) {
-              try {
-                const newLatLng = new window.kakao.maps.LatLng(lat, lng);
-                marker.setPosition(newLatLng);
-                circle.setCenter(newLatLng);
-                map.panTo(newLatLng);
-                console.log('✅ 마커와 원 위치 즉시 업데이트 완료');
-              } catch (error) {
-                console.log('⚠️ 마커/원 업데이트 실패:', error);
-              }
-            }
-            
-            // 주소 조회 및 계산 업데이트
-            setTimeout(() => {
-              updateAddress(lat, lng);
-              updateCalculations();
-            }, 100);
-          } else {
-            console.log('⚠️ 마우스 이벤트에서 위치 정보를 찾을 수 없습니다');
-          }
-        };
         
-        window.kakao.maps.event.addListener(kakaoMap, 'click', clickListener);
-        console.log('10.4. ✅ 클릭 이벤트 등록 완료');
+        circleRef.current = circle;
+        console.log('✅ 원 생성 완료:', circle);
+        console.log('원이 지도에 표시됨:', circle.getMap());
+        console.log('원 메서드 확인:', {
+          setCenter: typeof circle.setCenter,
+          setRadius: typeof circle.setRadius,
+          getCenter: typeof circle.getCenter,
+          getMap: typeof circle.getMap
+        });
       } catch (error) {
-        console.log('10.4. ⚠️ 클릭 이벤트 등록 실패:', error);
-      }
-
-      // 초기 주소 조회 (안전하게)
-      try {
-        updateAddress(centerLat, centerLng);
-        updateCalculations();
-        console.log('10.5. ✅ 초기 주소 조회 완료');
-      } catch (error) {
-        console.log('10.5. ⚠️ 초기 주소 조회 실패:', error);
+        console.error('❌ 원 생성 실패:', error);
+        circleRef.current = null;
       }
       
-      console.log('11. ✅ 지도 초기화 완료');
+      // 클릭 이벤트
+      window.kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
+        const lat = mouseEvent.latLng.getLat();
+        const lng = mouseEvent.latLng.getLng();
+        
+        console.log('🗺️ 지도 클릭됨:', lat, lng);
+        console.log('클릭 전 center 상태:', center);
+        
+        // 상태 업데이트
+        setCenter({ lat, lng });
+        
+        // 마커 업데이트
+        try {
+          if (markerRef.current) {
+            markerRef.current.setPosition(mouseEvent.latLng);
+            console.log('✅ 마커 위치 업데이트 완료');
+          }
+        } catch (error) {
+          console.error('❌ 마커 업데이트 실패:', error);
+        }
+        
+        // 원 자동 재생성 (클릭한 위치에 직접 생성)
+        setTimeout(() => {
+          console.log('원 재생성 호출 시 center 상태:', { lat, lng });
+          recreateCircleAtPosition(lat, lng);
+        }, 50);
+        
+        // 주소 조회
+        updateAddress(lat, lng);
+      });
+      
+      console.log('✅ 클릭 이벤트 등록 완료');
+      console.log('✅ 지도 초기화 완료');
+      
+      // 초기 주소 조회
+      updateAddress(center.lat, center.lng);
+      
     } catch (error) {
-      console.error('11. 지도 초기화 실패:', error);
+      console.error('❌ 지도 초기화 실패:', error);
     }
-  };
-
-  // 중심점 업데이트
-  const updateCenter = (lat: number, lng: number) => {
-    console.log('📍 중심점 업데이트:', lat, lng);
-    
-    // 상태 업데이트
-    setCenterLat(lat);
-    setCenterLng(lng);
-
-    // 마커와 원 업데이트
-    if (marker && circle && map) {
-      try {
-        const latlng = new window.kakao.maps.LatLng(lat, lng);
-        marker.setPosition(latlng);
-        circle.setCenter(latlng);
-        map.panTo(latlng);
-        console.log('✅ 마커와 원 위치 업데이트 완료');
-      } catch (error) {
-        console.log('⚠️ 마커/원 업데이트 실패:', error);
-      }
-    } else {
-      console.log('⚠️ 마커, 원, 또는 지도가 없습니다:', { marker: !!marker, circle: !!circle, map: !!map });
-    }
-
-    // 주소 조회 및 계산 업데이트
-    setTimeout(() => {
-      updateAddress(lat, lng);
-      updateCalculations();
-    }, 100);
-  };
-
-  // 반경 업데이트
-  const updateRadius = (newRadius: number) => {
-    console.log('📏 반경 업데이트:', newRadius);
-    setRadius(newRadius);
-    
-    if (circle) {
-      try {
-        circle.setRadius(newRadius);
-        console.log('✅ 원 반경 업데이트 완료');
-      } catch (error) {
-        console.log('⚠️ 원 반경 업데이트 실패:', error);
-      }
-    } else {
-      console.log('⚠️ 원이 없습니다');
-    }
-
-    updateCalculations();
   };
 
   // 주소 업데이트
-  const updateAddress = (lat: number, lng: number) => {
-    if (!geocoder) {
-      console.log('⚠️ 지오코더가 없어서 주소 조회를 건너뜁니다.');
-      setAddress('주소를 불러오는 중...');
-      return;
-    }
-
+  const updateAddress = async (lat: number, lng: number) => {
     try {
-      geocoder.coord2Address(lng, lat, (result: any, status: string) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          const addressResult = result[0];
-          const fullAddress = addressResult.address.address_name;
-          setAddress(fullAddress);
+      // REST API 키로 변경 (JavaScript 키가 아닌 REST API 키 사용)
+      const response = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,
+        {
+          headers: {
+            'Authorization': `KakaoAK b40c004cf9eecc7cda1ff20d114c0b11`
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.documents && data.documents.length > 0) {
+          setAddress(data.documents[0].address.address_name);
         } else {
           setAddress('주소를 찾을 수 없습니다.');
         }
-      });
+      } else {
+        console.error('주소 조회 실패:', response.status, response.statusText);
+        setAddress('주소를 찾을 수 없습니다.');
+      }
     } catch (error) {
-      console.log('⚠️ 주소 조회 중 오류:', error);
-      setAddress('주소 조회 실패');
+      console.error('주소 조회 오류:', error);
+      setAddress('주소 조회 중 오류 발생');
     }
   };
 
   // 계산값 업데이트
   const updateCalculations = () => {
-    // 커버 면적 계산 (πr²)
     const area = Math.PI * radius * radius;
     setCoverageArea(area);
-
-    // 예상 도달 고객 수 계산 (면적 * 800)
     const reach = Math.floor(area * 800);
     setEstimatedReach(reach);
-    
     console.log('📊 계산 업데이트:', { radius, area, reach });
+  };
+
+  // 반경 업데이트
+  const handleRadiusChange = (newRadius: number) => {
+    console.log('📏 반경 업데이트:', newRadius);
+    setRadius(newRadius);
+    
+    // 원 자동 재생성 (현재 중심점에)
+    setTimeout(() => {
+      recreateCircleAtPosition(center.lat, center.lng);
+    }, 100);
+    
+    updateCalculations();
   };
 
   // 빠른 위치 이동
   const moveToLocation = (location: LocationData) => {
     console.log('🚀 빠른 이동:', location.name, location.lat, location.lng);
-    
-    // 즉시 상태 업데이트
-    setCenterLat(location.lat);
-    setCenterLng(location.lng);
+    setCenter({ lat: location.lat, lng: location.lng });
     setRadius(location.defaultRadius);
     
-    // 마커와 원 업데이트
-    if (marker && circle && map) {
-      try {
-        const newLatLng = new window.kakao.maps.LatLng(location.lat, location.lng);
-        marker.setPosition(newLatLng);
-        circle.setCenter(newLatLng);
-        circle.setRadius(location.defaultRadius);
-        map.panTo(newLatLng);
-        console.log('✅ 빠른 이동 완료');
-      } catch (error) {
-        console.log('⚠️ 빠른 이동 실패:', error);
+    // 지도와 마커 업데이트
+    try {
+      const newLatLng = new window.kakao.maps.LatLng(location.lat, location.lng);
+      
+      if (mapRef.current) {
+        mapRef.current.panTo(newLatLng);
+        console.log('✅ 지도 이동 완료');
       }
+      
+      if (markerRef.current) {
+        markerRef.current.setPosition(newLatLng);
+        console.log('✅ 마커 이동 완료');
+      }
+      
+      console.log('✅ 빠른 이동 완료');
+    } catch (error) {
+      console.error('❌ 빠른 이동 실패:', error);
     }
     
-    // 주소 조회 및 계산 업데이트
+    // 원 자동 재생성 (위치 지정)
     setTimeout(() => {
-      updateAddress(location.lat, location.lng);
-      updateCalculations();
+      recreateCircleAtPosition(location.lat, location.lng);
     }, 100);
+    
+    updateAddress(location.lat, location.lng);
+    updateCalculations();
   };
 
   // 타겟 생성 페이지로 이동
   const handleCreateTarget = () => {
     console.log('🎯 타겟 생성 버튼 클릭됨');
-    console.log('데이터:', { centerLat, centerLng, radius, address });
+    console.log('데이터:', { center, radius, address });
     
-    const targetData = {
-      centerLat,
-      centerLng,
-      radius,
-      address
-    };
-    
-    // URL 파라미터로 데이터 전달
     const params = new URLSearchParams({
-      lat: centerLat.toString(),
-      lng: centerLng.toString(),
+      lat: center.lat.toString(),
+      lng: center.lng.toString(),
       radius: radius.toString(),
       address: address
     });
@@ -384,6 +357,11 @@ const TargetingMapPage: React.FC = () => {
     router.push(`/create-targeting?${params.toString()}`);
   };
 
+  // 계산값 업데이트
+  useEffect(() => {
+    updateCalculations();
+  }, [radius]);
+
   if (isLoading) {
     return (
       <Layout>
@@ -391,7 +369,6 @@ const TargetingMapPage: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">지도를 불러오는 중...</p>
-            <p className="text-sm text-gray-500 mt-2">잠시만 기다려주세요</p>
           </div>
         </div>
       </Layout>
@@ -403,23 +380,20 @@ const TargetingMapPage: React.FC = () => {
       <div className="flex h-screen bg-gray-50">
         {/* 왼쪽 지도 영역 (70%) */}
         <div className="flex-1 flex flex-col">
-          {/* 상단 빠른 이동 버튼 */}
-          <div className="bg-white p-4 border-b border-gray-200">
+          {/* 상단 컨트롤 */}
+          <div className="p-4 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <ArrowLeft 
-                  className="h-5 w-5 text-gray-600 cursor-pointer hover:text-gray-800" 
-                  onClick={() => router.back()}
-                />
-                <h1 className="text-xl font-semibold text-gray-900">위치 타겟팅</h1>
+              <div className="flex items-center">
+                <Map className="h-5 w-5 mr-2 text-blue-600" />
+                <h1 className="text-lg font-semibold text-gray-900">위치 타겟팅</h1>
               </div>
               <Button
-                variant="primary"
-                onClick={handleCreateTarget}
-                className="bg-blue-600 hover:bg-blue-700"
+                variant="outline"
+                onClick={() => router.push('/targeting')}
+                className="flex items-center"
               >
-                <Target className="h-4 w-4 mr-2" />
-                타겟 생성
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                목록으로
               </Button>
             </div>
             
@@ -442,28 +416,24 @@ const TargetingMapPage: React.FC = () => {
             </div>
           </div>
 
-                      {/* 지도 */}
-            <div className="flex-1 relative">
-              <div 
-                ref={mapRef} 
-                className="w-full h-full" 
-                style={{ minHeight: '400px', border: '2px solid blue' }}
-                data-testid="map-container"
-              />
-              {/* 디버그 정보 */}
-              <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white p-2 rounded text-xs">
-                <div>지도 상태: {map ? '로드됨' : '로딩 중'}</div>
-                <div>마커: {marker ? '있음' : '없음'}</div>
-                <div>원: {circle ? '있음' : '없음'}</div>
-                <div>위도: {centerLat.toFixed(6)}</div>
-                <div>경도: {centerLng.toFixed(6)}</div>
-                <div>반경: {radius}m</div>
-                <div>클릭 테스트: 지도를 클릭해보세요!</div>
-              </div>
+          {/* 지도 */}
+          <div className="flex-1 relative" style={{ minHeight: '500px' }}>
+            <div 
+              ref={mapContainerRef} 
+              className="w-full h-full"
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                minHeight: '500px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                backgroundColor: '#f3f4f6'
+              }}
+            />
             
-            {/* 지도 로딩 중 */}
+            {/* 지도 로딩 오버레이 */}
             {isLoading && (
-              <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+              <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">지도를 불러오는 중...</p>
@@ -471,6 +441,25 @@ const TargetingMapPage: React.FC = () => {
                 </div>
               </div>
             )}
+            
+            {/* 디버그 정보 */}
+            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white p-2 rounded text-xs z-20">
+              <div>로딩 상태: {isLoading ? '로딩 중' : '완료'}</div>
+              <div>컨테이너: {mapContainerRef.current ? '있음' : '없음'}</div>
+              <div>SDK: {window.kakao?.maps ? '로드됨' : '로딩 중'}</div>
+              <div>지도: {mapRef.current ? '생성됨' : '없음'}</div>
+              <div>마커: {markerRef.current ? '있음' : '없음'}</div>
+              <div>원: {circleRef.current ? '있음' : '없음'}</div>
+              <div>위도: {center.lat.toFixed(6)}</div>
+              <div>경도: {center.lng.toFixed(6)}</div>
+              <div>반경: {radius}m</div>
+              <button 
+                onClick={() => recreateCircleAtPosition(center.lat, center.lng)}
+                className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                원 재생성
+              </button>
+            </div>
             
             {/* 반경 조절 슬라이더 */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg p-4 min-w-[300px] z-10">
@@ -488,7 +477,7 @@ const TargetingMapPage: React.FC = () => {
                 value={radius}
                 onChange={(e) => {
                   console.log('🎚️ 슬라이더 변경:', e.target.value);
-                  updateRadius(parseInt(e.target.value));
+                  handleRadiusChange(parseInt(e.target.value));
                 }}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                 style={{ zIndex: 1000 }}
@@ -519,7 +508,7 @@ const TargetingMapPage: React.FC = () => {
                     위도 (Latitude)
                   </label>
                   <p className="text-sm text-gray-900 font-mono">
-                    {centerLat.toFixed(6)}
+                    {center.lat.toFixed(6)}
                   </p>
                 </div>
                 
@@ -528,7 +517,7 @@ const TargetingMapPage: React.FC = () => {
                     경도 (Longitude)
                   </label>
                   <p className="text-sm text-gray-900 font-mono">
-                    {centerLng.toFixed(6)}
+                    {center.lng.toFixed(6)}
                   </p>
                 </div>
                 

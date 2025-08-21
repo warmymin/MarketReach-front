@@ -14,29 +14,29 @@ interface AppState {
   campaigns: Campaign[];
   setCampaigns: (campaigns: Campaign[]) => void;
   addCampaign: (campaign: Campaign) => void;
-  updateCampaign: (id: number, campaign: Campaign) => void;
-  deleteCampaign: (id: number) => void;
+  updateCampaign: (id: string, campaign: Campaign) => void;
+  deleteCampaign: (id: string) => void;
   
   // 타겟팅 데이터
   targetingLocations: TargetingLocation[];
   setTargetingLocations: (locations: TargetingLocation[]) => void;
   addTargetingLocation: (location: TargetingLocation) => void;
-  updateTargetingLocation: (id: number, location: TargetingLocation) => void;
-  deleteTargetingLocation: (id: number) => void;
+  updateTargetingLocation: (id: string, location: TargetingLocation) => void;
+  deleteTargetingLocation: (id: string) => void;
   
   // 고객 데이터
   customers: Customer[];
   setCustomers: (customers: Customer[]) => void;
   addCustomer: (customer: Customer) => void;
-  updateCustomer: (id: number, customer: Customer) => void;
-  deleteCustomer: (id: number) => void;
+  updateCustomer: (id: string, customer: Customer) => void;
+  deleteCustomer: (id: string) => void;
   
   // 발송 데이터
   deliveries: Delivery[];
   setDeliveries: (deliveries: Delivery[]) => void;
   addDelivery: (delivery: Delivery) => void;
-  updateDelivery: (id: number, delivery: Delivery) => void;
-  deleteDelivery: (id: number) => void;
+  updateDelivery: (id: string, delivery: Delivery) => void;
+  deleteDelivery: (id: string) => void;
   
   // UI 상태
   sidebarOpen: boolean;

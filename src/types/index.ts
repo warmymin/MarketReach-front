@@ -7,63 +7,64 @@ export interface ApiResponse<T = any> {
 
 // 회사 타입
 export interface Company {
-  id: number;
+  id: string;
   name: string;
   description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 고객 타입
-export interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  latitude: number;
-  longitude: number;
-  address?: string;
-  companyId: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 타겟팅 위치 타입
-export interface TargetingLocation {
-  id: number;
-  name: string;
-  latitude: number;
-  longitude: number;
-  radius: number;
-  description?: string;
-  companyId: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 캠페인 타입
-export interface Campaign {
-  id: number;
-  name: string;
-  message: string;
-  description?: string;
-  status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED';
-  targetingLocationId?: number;
-  companyId?: number;
   createdAt: string;
   updatedAt?: string;
 }
 
+// 고객 타입
+export interface Customer {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  companyId: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// 타겟팅 위치 타입
+export interface TargetingLocation {
+  id: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusM: number;
+  memo?: string;
+  createdAt: string;
+}
+
+// 캠페인 타입
+export interface Campaign {
+  id: string;
+  name: string;
+  message: string;
+  description?: string;
+  status: 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
+  targetingLocationId?: string;
+  companyId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deliveries?: Delivery[];
+}
+
 // 발송 타입
 export interface Delivery {
-  id: number;
-  campaignId: number;
-  customerId: number;
-  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
+  id: string;
+  campaignId?: string;
+  customerId?: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  messageTextSent?: string;
+  errorCode?: string;
   sentAt?: string;
   deliveredAt?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // 통계 타입

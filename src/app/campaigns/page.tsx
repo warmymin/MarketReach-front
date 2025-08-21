@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit, Trash2, Play, Pause, X } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Send, CheckCircle, AlertCircle, Clock, X } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -23,7 +23,7 @@ const CampaignModal: React.FC<{
     name: '',
     message: '',
     description: '',
-    status: 'DRAFT' as 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED',
+    status: 'DRAFT' as 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED',
     targetingLocationId: ''
   });
   const [targetingLocations, setTargetingLocations] = useState<any[]>([]);
@@ -55,7 +55,7 @@ const CampaignModal: React.FC<{
       if (isOpen) {
         try {
           setLoadingLocations(true);
-          const response = await fetch('http://localhost:8083/api/targeting-locations');
+          const response = await fetch('http://localhost:8084/api/targeting-locations');
           const data = await response.json();
           if (data.success) {
             setTargetingLocations(data.data);
@@ -75,7 +75,7 @@ const CampaignModal: React.FC<{
     e.preventDefault();
     const submitData = {
       ...formData,
-      targetingLocationId: formData.targetingLocationId ? parseInt(formData.targetingLocationId) : undefined
+      targetingLocationId: formData.targetingLocationId || undefined
     };
     onSubmit(submitData);
   };
@@ -104,9 +104,10 @@ const CampaignModal: React.FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              캠페인 이름 *
+              캠페인 이름
             </label>
             <Input
+              type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="캠페인 이름을 입력하세요"
@@ -116,7 +117,7 @@ const CampaignModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              메시지 *
+              메시지
             </label>
             <textarea
               value={formData.message}
@@ -129,7 +130,7 @@ const CampaignModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              설명
+              설명 (선택사항)
             </label>
             <textarea
               value={formData.description}
@@ -141,27 +142,21 @@ const CampaignModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              타겟팅 위치 *
+              타겟팅 위치
             </label>
-            {loadingLocations ? (
-              <div className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
-                <span className="text-gray-500">로딩 중...</span>
-              </div>
-            ) : (
-              <select
-                value={formData.targetingLocationId}
-                onChange={(e) => setFormData({ ...formData, targetingLocationId: e.target.value })}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">타겟팅 위치를 선택하세요</option>
-                {targetingLocations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name} ({location.latitude.toFixed(4)}, {location.longitude.toFixed(4)})
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              value={formData.targetingLocationId}
+              onChange={(e) => setFormData({ ...formData, targetingLocationId: e.target.value })}
+              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loadingLocations}
+            >
+              <option value="">타겟팅 위치를 선택하세요</option>
+              {targetingLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -170,13 +165,14 @@ const CampaignModal: React.FC<{
             </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED' })}
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="DRAFT">초안</option>
-              <option value="ACTIVE">활성</option>
+              <option value="SENDING">발송 중</option>
+              <option value="COMPLETED">발송 완료</option>
               <option value="PAUSED">일시정지</option>
-              <option value="COMPLETED">완료</option>
+              <option value="CANCELLED">취소됨</option>
             </select>
           </div>
 
@@ -207,21 +203,23 @@ const CampaignModal: React.FC<{
 const CampaignCard: React.FC<{
   campaign: Campaign;
   onEdit: (campaign: Campaign) => void;
-  onDelete: (id: number) => void;
-  onToggleStatus: (id: number, status: string) => void;
-}> = ({ campaign, onEdit, onDelete, onToggleStatus }) => {
+  onDelete: (id: string) => void;
+  onSend: (id: string) => void;
+}> = ({ campaign, onEdit, onDelete, onSend }) => {
   const statusColors = {
     DRAFT: 'bg-gray-100 text-gray-800',
-    ACTIVE: 'bg-green-100 text-green-800',
-    PAUSED: 'bg-yellow-100 text-yellow-800',
-    COMPLETED: 'bg-blue-100 text-blue-800',
+    SENDING: 'bg-blue-100 text-blue-800',
+    COMPLETED: 'bg-green-100 text-green-800',
+    PAUSED: 'bg-orange-100 text-orange-800',
+    CANCELLED: 'bg-red-100 text-red-800',
   };
 
   const statusLabels = {
     DRAFT: '초안',
-    ACTIVE: '활성',
+    SENDING: '발송 중',
+    COMPLETED: '발송 완료',
     PAUSED: '일시정지',
-    COMPLETED: '완료',
+    CANCELLED: '취소됨',
   };
 
   return (
@@ -243,175 +241,181 @@ const CampaignCard: React.FC<{
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          {campaign.status === 'DRAFT' && (
+          {/* 발송 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
+          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && campaign.targetingLocationId && (
             <Button
               size="sm"
               variant="primary"
-              onClick={() => onToggleStatus(campaign.id, 'ACTIVE')}
+              onClick={() => onSend(campaign.id)}
+              className="bg-green-600 hover:bg-green-700"
             >
-              <Play className="h-4 w-4" />
+              <Send className="h-4 w-4 mr-1" />
+              발송
             </Button>
           )}
-          {campaign.status === 'ACTIVE' && (
+          
+          {/* 발송 중 상태 */}
+          {campaign.status === 'SENDING' && (
             <Button
               size="sm"
-              variant="secondary"
-              onClick={() => onToggleStatus(campaign.id, 'PAUSED')}
+              variant="outline"
+              disabled
+              className="opacity-50 cursor-not-allowed"
             >
-              <Pause className="h-4 w-4" />
+              <Clock className="h-4 w-4 mr-1" />
+              발송 중...
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onEdit(campaign)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onDelete(campaign.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          
+          {/* 발송 완료 상태 */}
+          {campaign.status === 'COMPLETED' && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled
+              className="opacity-50 cursor-not-allowed"
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              발송완료
+            </Button>
+          )}
+          
+          {/* 타겟팅 위치 필요 */}
+          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && !campaign.targetingLocationId && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled
+              className="opacity-50 cursor-not-allowed"
+              title="타겟팅 위치를 설정해야 발송할 수 있습니다"
+            >
+              <AlertCircle className="h-4 w-4 mr-1" />
+              타겟팅 필요
+            </Button>
+          )}
+          
+          {/* 수정 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
+          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onEdit(campaign)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {/* 삭제 버튼 - DRAFT, COMPLETED, PAUSED 상태에서만 표시 */}
+          {(campaign.status === 'DRAFT' || campaign.status === 'COMPLETED' || campaign.status === 'PAUSED') && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => onDelete(campaign.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </Card>
   );
 };
 
+// 메인 캠페인 페이지 컴포넌트
 const CampaignsPage: React.FC = () => {
-  const { campaigns, setCampaigns, addCampaign, updateCampaign, deleteCampaign, addNotification } = useAppStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { addNotification } = useAppStore();
+
+  // 캠페인 목록 로드
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true);
+      const response = await campaignApi.getAll();
+      if (response.data.success) {
+        setCampaigns(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+      addNotification({ type: 'error', message: '캠페인 목록을 불러오는데 실패했습니다.' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        setLoading(true);
-        const response = await campaignApi.getAll();
-        if (response.data.success) {
-          setCampaigns(response.data.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch campaigns:', error);
-        addNotification({
-          type: 'error',
-          message: '캠페인 목록을 불러오는데 실패했습니다.'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadCampaigns();
+  }, []);
 
-    fetchCampaigns();
-  }, [setCampaigns, addNotification]);
-
-  const filteredCampaigns = campaigns.filter(campaign => {
-    const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         campaign.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         campaign.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || campaign.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleCreate = () => {
-    setEditingCampaign(null);
-    setModalOpen(true);
-  };
-
-  const handleEdit = (campaign: Campaign) => {
-    setEditingCampaign(campaign);
-    setModalOpen(true);
-  };
-
+  // 캠페인 생성/수정
   const handleSubmit = async (campaignData: Partial<Campaign>) => {
     try {
-      setSubmitting(true);
-      
       if (editingCampaign) {
-        // 수정
-        const response = await campaignApi.update(editingCampaign.id, campaignData);
-        if (response.data.success) {
-          updateCampaign(editingCampaign.id, response.data.data);
-          addNotification({
-            type: 'success',
-            message: '캠페인이 수정되었습니다.'
-          });
-        }
+        await campaignApi.update(editingCampaign.id, campaignData);
+        addNotification({ type: 'success', message: '캠페인이 수정되었습니다.' });
       } else {
-        // 생성
-        const response = await campaignApi.create(campaignData);
-        if (response.data.success) {
-          addCampaign(response.data.data);
-          addNotification({
-            type: 'success',
-            message: '캠페인이 생성되었습니다.'
-          });
-        }
+        await campaignApi.create(campaignData);
+        addNotification({ type: 'success', message: '캠페인이 생성되었습니다.' });
       }
-      
       setModalOpen(false);
       setEditingCampaign(null);
+      loadCampaigns();
     } catch (error) {
-      console.error('Campaign operation failed:', error);
-      addNotification({
-        type: 'error',
-        message: editingCampaign ? '캠페인 수정에 실패했습니다.' : '캠페인 생성에 실패했습니다.'
-      });
-    } finally {
-      setSubmitting(false);
+      console.error('Failed to save campaign:', error);
+      addNotification({ type: 'error', message: '캠페인 저장에 실패했습니다.' });
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('정말로 이 캠페인을 삭제하시겠습니까?')) {
-      try {
-        const response = await campaignApi.delete(id);
-        if (response.data.success) {
-          deleteCampaign(id);
-          addNotification({
-            type: 'success',
-            message: '캠페인이 삭제되었습니다.'
-          });
-        }
-      } catch (error) {
-        console.error('Delete campaign failed:', error);
-        addNotification({
-          type: 'error',
-          message: '캠페인 삭제에 실패했습니다.'
-        });
-      }
-    }
-  };
-
-  const handleToggleStatus = async (id: number, status: string) => {
+  // 캠페인 삭제
+  const handleDelete = async (id: string) => {
+    if (!confirm('정말로 이 캠페인을 삭제하시겠습니까?')) return;
+    
     try {
-      const campaign = campaigns.find(c => c.id === id);
-      if (campaign) {
-        const updatedCampaign = { ...campaign, status: status as any };
-        const response = await campaignApi.update(id, updatedCampaign);
-        if (response.data.success) {
-          updateCampaign(id, response.data.data);
-          addNotification({
-            type: 'success',
-            message: '캠페인 상태가 업데이트되었습니다.'
-          });
-        }
-      }
+      await campaignApi.delete(id);
+      addNotification({ type: 'success', message: '캠페인이 삭제되었습니다.' });
+      loadCampaigns();
     } catch (error) {
-      console.error('Toggle status failed:', error);
-      addNotification({
-        type: 'error',
-        message: '캠페인 상태 업데이트에 실패했습니다.'
-      });
+      console.error('Failed to delete campaign:', error);
+      addNotification({ type: 'error', message: '캠페인 삭제에 실패했습니다.' });
     }
   };
+
+  // 캠페인 발송
+  const handleSend = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:8084/api/campaigns/${id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        addNotification({ type: 'success', message: '캠페인 발송이 완료되었습니다.' });
+      } else {
+        addNotification({ type: 'error', message: data.message || '캠페인 발송에 실패했습니다.' });
+      }
+      
+      loadCampaigns();
+    } catch (error) {
+      console.error('Failed to send campaign:', error);
+      addNotification({ type: 'error', message: '캠페인 발송에 실패했습니다.' });
+    }
+  };
+
+  // 필터링된 캠페인 목록
+  const filteredCampaigns = campaigns.filter(campaign => {
+    const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         campaign.message.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <Layout>
@@ -419,89 +423,79 @@ const CampaignsPage: React.FC = () => {
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">캠페인 관리</h1>
+            <h1 className="text-2xl font-bold text-gray-900">캠페인 관리</h1>
             <p className="text-gray-600">마케팅 캠페인을 생성하고 관리하세요</p>
           </div>
-          <Button variant="primary" onClick={handleCreate}>
+          <Button
+            onClick={() => {
+              setEditingCampaign(null);
+              setModalOpen(true);
+            }}
+            variant="primary"
+          >
             <Plus className="h-4 w-4 mr-2" />
             새 캠페인
           </Button>
         </div>
 
-        {/* 검색 및 필터 */}
-        <Card>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="캠페인 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="sm:w-48">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="ALL">모든 상태</option>
-                <option value="DRAFT">초안</option>
-                <option value="ACTIVE">활성</option>
-                <option value="PAUSED">일시정지</option>
-                <option value="COMPLETED">완료</option>
-              </select>
+        {/* 필터 및 검색 */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="캠페인 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </div>
-        </Card>
+          <div className="sm:w-48">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">모든 상태</option>
+              <option value="DRAFT">초안</option>
+              <option value="SENDING">발송 중</option>
+              <option value="COMPLETED">발송 완료</option>
+              <option value="PAUSED">일시정지</option>
+              <option value="CANCELLED">취소됨</option>
+            </select>
+          </div>
+        </div>
 
         {/* 캠페인 목록 */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, index) => (
-              <Card key={index}>
-                <div className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                </div>
-              </Card>
-            ))}
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">캠페인을 불러오는 중...</p>
           </div>
         ) : filteredCampaigns.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-gray-500">캠페인이 없습니다.</p>
-              <Button variant="primary" className="mt-4" onClick={handleCreate}>
-                <Plus className="h-4 w-4 mr-2" />
-                첫 번째 캠페인 생성
-              </Button>
-            </div>
-          </Card>
+          <div className="text-center py-8">
+            <p className="text-gray-600">캠페인이 없습니다.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredCampaigns.map((campaign, index) => (
-              <motion.div
+          <div className="grid gap-4">
+            {filteredCampaigns.map((campaign) => (
+              <CampaignCard
                 key={campaign.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <CampaignCard
-                  campaign={campaign}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onToggleStatus={handleToggleStatus}
-                />
-              </motion.div>
+                campaign={campaign}
+                onEdit={(campaign) => {
+                  setEditingCampaign(campaign);
+                  setModalOpen(true);
+                }}
+                onDelete={handleDelete}
+                onSend={handleSend}
+              />
             ))}
           </div>
         )}
 
-        {/* 캠페인 생성/편집 모달 */}
+        {/* 모달 */}
         <CampaignModal
           isOpen={modalOpen}
           onClose={() => {
@@ -510,7 +504,7 @@ const CampaignsPage: React.FC = () => {
           }}
           campaign={editingCampaign}
           onSubmit={handleSubmit}
-          loading={submitting}
+          loading={loading}
         />
       </div>
     </Layout>

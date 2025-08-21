@@ -3,10 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { MapPin, Navigation, Target, Users, Map, Save, ArrowLeft } from 'lucide-react';
+import { MapPin, Navigation, Target, Users, Map, Save, ArrowLeft, User, Phone, MapPin as MapPinIcon } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { customerApi, targetingApi } from '@/lib/api';
+import { CustomerWithDistance } from '@/types';
 
 interface LocationData {
   name: string;
@@ -35,6 +37,12 @@ const TargetingMapPage: React.FC = () => {
   const [coverageArea, setCoverageArea] = useState(0);
   const [estimatedReach, setEstimatedReach] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 고객 필터링 상태
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithDistance[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [targetName, setTargetName] = useState('');
+  const [showTargetForm, setShowTargetForm] = useState(false);
 
   // 지도 객체 참조
   const mapRef = useRef<any>(null);
@@ -240,6 +248,9 @@ const TargetingMapPage: React.FC = () => {
           recreateCircleAtPosition(lat, lng);
         }, 50);
         
+        // 반경 내 고객 조회
+        fetchCustomersInRadius(lat, lng, radius);
+        
         // 주소 조회
         updateAddress(lat, lng);
       });
@@ -285,13 +296,37 @@ const TargetingMapPage: React.FC = () => {
     }
   };
 
+  // 반경 내 고객 조회
+  const fetchCustomersInRadius = async (lat: number, lng: number, radiusM: number) => {
+    try {
+      setIsLoadingCustomers(true);
+      console.log('🔍 반경 내 고객 조회 시작:', { lat, lng, radiusM });
+      
+      const response = await customerApi.getNearbyWithDistance(lat, lng, radiusM);
+      
+      if (response.data.success) {
+        const customers = response.data.data.customers || [];
+        console.log('✅ 반경 내 고객 조회 완료:', customers.length, '명');
+        setFilteredCustomers(customers);
+      } else {
+        console.error('❌ 반경 내 고객 조회 실패:', response.data.message);
+        setFilteredCustomers([]);
+      }
+    } catch (error) {
+      console.error('❌ 반경 내 고객 조회 오류:', error);
+      setFilteredCustomers([]);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
   // 계산값 업데이트
   const updateCalculations = () => {
     const area = Math.PI * radius * radius;
     setCoverageArea(area);
-    const reach = Math.floor(area * 800);
-    setEstimatedReach(reach);
-    console.log('📊 계산 업데이트:', { radius, area, reach });
+    // 예상 도달을 실제 고객 수로 변경
+    setEstimatedReach(filteredCustomers.length);
+    console.log('📊 계산 업데이트:', { radius, area, reach: filteredCustomers.length });
   };
 
   // 반경 업데이트
@@ -303,6 +338,9 @@ const TargetingMapPage: React.FC = () => {
     setTimeout(() => {
       recreateCircleAtPosition(center.lat, center.lng);
     }, 100);
+    
+    // 반경 내 고객 재조회
+    fetchCustomersInRadius(center.lat, center.lng, newRadius);
     
     updateCalculations();
   };
@@ -337,30 +375,68 @@ const TargetingMapPage: React.FC = () => {
       recreateCircleAtPosition(location.lat, location.lng);
     }, 100);
     
+    // 반경 내 고객 조회
+    fetchCustomersInRadius(location.lat, location.lng, location.defaultRadius);
+    
     updateAddress(location.lat, location.lng);
     updateCalculations();
   };
 
-  // 타겟 생성 페이지로 이동
-  const handleCreateTarget = () => {
-    console.log('🎯 타겟 생성 버튼 클릭됨');
-    console.log('데이터:', { center, radius, address });
+  // 타겟팅 생성
+  const handleCreateTarget = async () => {
+    if (!targetName.trim()) {
+      alert('타겟팅 이름을 입력해주세요.');
+      return;
+    }
     
-    const params = new URLSearchParams({
-      lat: center.lat.toString(),
-      lng: center.lng.toString(),
-      radius: radius.toString(),
-      address: address
+    if (filteredCustomers.length === 0) {
+      alert('반경 내 고객이 없습니다. 다른 위치나 반경을 설정해주세요.');
+      return;
+    }
+    
+    console.log('🎯 타겟팅 생성:', {
+      name: targetName,
+      center,
+      radius,
+      customers: filteredCustomers.length
     });
     
-    console.log('이동할 URL:', `/create-targeting?${params.toString()}`);
-    router.push(`/create-targeting?${params.toString()}`);
+    try {
+      // 타겟팅 데이터 생성
+      const targetingData = {
+        name: targetName,
+        centerLat: center.lat,
+        centerLng: center.lng,
+        radiusM: radius,
+        memo: `고객 수: ${filteredCustomers.length}명`
+      };
+      
+      // PostgreSQL에 저장
+      const response = await targetingApi.create(targetingData);
+      
+      if (response.data.success) {
+        // 성공 메시지
+        alert(`타겟팅 "${targetName}"이 성공적으로 생성되었습니다!\n포함된 고객: ${filteredCustomers.length}명`);
+        
+        // 폼 초기화
+        setTargetName('');
+        setShowTargetForm(false);
+        
+        // 타겟팅 리스트 페이지로 이동
+        router.push('/targeting');
+      } else {
+        alert('타겟팅 생성에 실패했습니다: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('타겟팅 생성 오류:', error);
+      alert('타겟팅 생성 중 오류가 발생했습니다.');
+    }
   };
 
   // 계산값 업데이트
   useEffect(() => {
     updateCalculations();
-  }, [radius]);
+  }, [radius, filteredCustomers.length]);
 
   if (isLoading) {
     return (
@@ -453,6 +529,7 @@ const TargetingMapPage: React.FC = () => {
               <div>위도: {center.lat.toFixed(6)}</div>
               <div>경도: {center.lng.toFixed(6)}</div>
               <div>반경: {radius}m</div>
+              <div>고객: {filteredCustomers.length}명</div>
               <button 
                 onClick={() => recreateCircleAtPosition(center.lat, center.lng)}
                 className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
@@ -570,17 +647,109 @@ const TargetingMapPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* 타겟 생성 버튼 */}
-            <div className="pt-4">
-              <Button
-                onClick={handleCreateTarget}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                size="lg"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                타겟 생성
-              </Button>
-            </div>
+            {/* 반경 내 고객 목록 */}
+            <Card>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900 flex items-center">
+                    <Users className="h-4 w-4 mr-2 text-purple-600" />
+                    반경 내 고객
+                  </h3>
+                  <span className="text-xs text-gray-500">
+                    {isLoadingCustomers ? '조회 중...' : `${filteredCustomers.length}명`}
+                  </span>
+                </div>
+                
+                {isLoadingCustomers ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-xs text-gray-500">고객을 조회하는 중...</p>
+                  </div>
+                ) : filteredCustomers.length > 0 ? (
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {filteredCustomers.slice(0, 10).map((customer, index) => (
+                      <div key={customer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{customer.name}</div>
+                          <div className="text-gray-500 flex items-center">
+                            <Phone className="h-3 w-3 mr-1" />
+                            {customer.phone}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-blue-600 font-medium">
+                            {customer.distance ? `${customer.distance}km` : '거리 계산 중'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredCustomers.length > 10 && (
+                      <div className="text-center text-xs text-gray-500 py-2">
+                        외 {filteredCustomers.length - 10}명 더...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <MapPinIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-xs">반경 내 고객이 없습니다</p>
+                    <p className="text-xs">다른 위치나 반경을 설정해보세요</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* 타겟 생성 폼 */}
+            {showTargetForm ? (
+              <Card>
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-900">타겟 생성</h3>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      타겟 이름 *
+                    </label>
+                    <input
+                      type="text"
+                      value={targetName}
+                      onChange={(e) => setTargetName(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="예: 강남역 점심 캠페인"
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleCreateTarget}
+                      disabled={!targetName.trim() || filteredCustomers.length === 0}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                      size="sm"
+                    >
+                      <Save className="h-3 w-3 mr-1" />
+                      생성
+                    </Button>
+                    <Button
+                      onClick={() => setShowTargetForm(false)}
+                      variant="outline"
+                      className="text-xs"
+                      size="sm"
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <div className="pt-4">
+                <Button
+                  onClick={() => setShowTargetForm(true)}
+                  disabled={filteredCustomers.length === 0}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  size="lg"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  타겟 생성
+                </Button>
+              </div>
+            )}
 
             {/* 사용법 안내 */}
             <Card>
@@ -590,6 +759,7 @@ const TargetingMapPage: React.FC = () => {
                   <li>• 지도를 클릭하여 중심점을 설정하세요</li>
                   <li>• 하단 슬라이더로 반경을 조절하세요</li>
                   <li>• 상단 버튼으로 빠른 이동이 가능합니다</li>
+                  <li>• 반경 내 고객이 자동으로 필터링됩니다</li>
                   <li>• "타겟 생성" 버튼으로 저장하세요</li>
                 </ul>
               </div>

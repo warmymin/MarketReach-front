@@ -34,6 +34,8 @@ export const customerApi = {
   getById: (id: string) => api.get<ApiResponse<Customer>>(`/customers/${id}`),
   getNearby: (lat: number, lng: number, radius: number = 10) => 
     api.get<ApiResponse<Customer[]>>(`/customers/nearby?lat=${lat}&lng=${lng}&radius=${radius}`),
+  getNearbyWithDistance: (lat: number, lng: number, radiusM: number) => 
+    api.get<ApiResponse<{customers: Customer[], count: number}>>(`/customers/nearby?lat=${lat}&lng=${lng}&radiusM=${radiusM}`),
   create: (data: Partial<Customer>) => api.post<ApiResponse<Customer>>('/customers', data),
   update: (id: string, data: Partial<Customer>) => api.put<ApiResponse<Customer>>(`/customers/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/customers/${id}`),
@@ -47,6 +49,9 @@ export const targetingApi = {
   update: (id: string, data: Partial<TargetingLocation>) => api.put<ApiResponse<TargetingLocation>>(`/targeting-locations/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/targeting-locations/${id}`),
 };
+
+// 타겟 관리 API
+
 
 // 캠페인 관리 API
 export const campaignApi = {
@@ -62,9 +67,16 @@ export const deliveryApi = {
   getAll: () => api.get<ApiResponse<Delivery[]>>('/deliveries'),
   getById: (id: string) => api.get<ApiResponse<Delivery>>(`/deliveries/${id}`),
   getByCampaign: (campaignId: string) => api.get<ApiResponse<Delivery[]>>(`/deliveries/campaign/${campaignId}`),
-  create: (data: Partial<Delivery>) => api.post<ApiResponse<Delivery>>('/deliveries', data),
-  update: (id: string, data: Partial<Delivery>) => api.put<ApiResponse<Delivery>>(`/deliveries/${id}`, data),
-  delete: (id: string) => api.delete<ApiResponse<void>>(`/deliveries/${id}`),
+  getByStatus: (status: string) => api.get<ApiResponse<Delivery[]>>(`/deliveries/status/${status}`),
+  simulateCampaign: (campaignId: string) => api.post<ApiResponse<any>>(`/deliveries/simulate/${campaignId}`, {}),
+  updateStatus: (id: string, status: string) => api.put<ApiResponse<Delivery>>(`/deliveries/${id}/status`, { status }),
+  getSummary: () => api.get<ApiResponse<any>>('/deliveries/summary'),
+  getRecent: () => api.get<ApiResponse<Delivery[]>>('/deliveries/recent'),
+  getRealtimeStats: () => api.get<ApiResponse<any>>('/deliveries/realtime-stats'),
+  getHourlyStats: () => api.get<ApiResponse<any>>('/deliveries/hourly-stats'),
+  // 새로운 엔드포인트들
+  getRecentByTimeSlot: () => api.get<ApiResponse<any>>('/deliveries/recent-timeslot'),
+  getHourlyDeliveries: () => api.get<ApiResponse<any>>('/deliveries/hourly'),
 };
 
 // 통계 API

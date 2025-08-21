@@ -28,6 +28,13 @@ export interface Customer {
   updatedAt?: string;
 }
 
+// 고객 거리 정보 타입
+export interface CustomerWithDistance extends Customer {
+  distance?: number; // km 단위
+}
+
+
+
 // 타겟팅 위치 타입
 export interface TargetingLocation {
   id: string;
@@ -47,6 +54,7 @@ export interface Campaign {
   description?: string;
   status: 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
   targetingLocationId?: string;
+
   companyId?: string;
   createdAt: string;
   updatedAt?: string;

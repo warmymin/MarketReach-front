@@ -8,101 +8,229 @@ import {
   Clock, 
   XCircle, 
   Send,
-  RefreshCw
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Settings
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAppStore } from '@/store';
 import { deliveryApi } from '@/lib/api';
-import { Delivery } from '@/types';
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 
-const DeliveryCard: React.FC<{
-  delivery: Delivery;
-}> = ({ delivery }) => {
-  const statusConfig = {
-    PENDING: {
-      icon: <Clock className="h-5 w-5 text-yellow-500" />,
-      label: '대기중',
-      color: 'bg-yellow-100 text-yellow-800',
-      bgColor: 'bg-yellow-50'
-    },
-    SENT: {
-      icon: <Send className="h-5 w-5 text-blue-500" />,
-      label: '발송됨',
-      color: 'bg-blue-100 text-blue-800',
-      bgColor: 'bg-blue-50'
-    },
-    DELIVERED: {
-      icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-      label: '전달됨',
-      color: 'bg-green-100 text-green-800',
-      bgColor: 'bg-green-50'
-    },
-    FAILED: {
-      icon: <XCircle className="h-5 w-5 text-red-500" />,
-      label: '실패',
-      color: 'bg-red-100 text-red-800',
-      bgColor: 'bg-red-50'
-    }
+// 통계 카드 컴포넌트
+const StatCard: React.FC<{
+  title: string;
+  value: string;
+  change: string;
+  changeType: 'positive' | 'negative' | 'neutral';
+  icon: React.ReactNode;
+  color: string;
+}> = ({ title, value, change, changeType, icon, color }) => {
+  const getChangeIcon = () => {
+    if (changeType === 'positive') return <TrendingUp className="h-4 w-4 text-green-500" />;
+    if (changeType === 'negative') return <TrendingDown className="h-4 w-4 text-red-500" />;
+    return null;
   };
 
-  const config = statusConfig[delivery.status];
-
   return (
-    <Card className={config.bgColor}>
+    <Card>
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          {config.icon}
-          <div>
-            <h3 className="font-semibold text-gray-900">발송 #{delivery.id}</h3>
-            <p className="text-sm text-gray-600">
-              캠페인 ID: {delivery.campaignId} | 고객 ID: {delivery.customerId}
-            </p>
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <div className="flex items-center space-x-1 mt-1">
+            {getChangeIcon()}
+            <span className={`text-sm font-medium ${
+              changeType === 'positive' ? 'text-green-600' : 
+              changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+            }`}>
+              {change}
+            </span>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-4">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
-            {config.label}
-          </span>
-          
-          <div className="text-right text-sm text-gray-500">
-            <div>생성: {new Date(delivery.createdAt).toLocaleString('ko-KR')}</div>
-            {delivery.sentAt && (
-              <div>발송: {new Date(delivery.sentAt).toLocaleString('ko-KR')}</div>
-            )}
-            {delivery.deliveredAt && (
-              <div>전달: {new Date(delivery.deliveredAt).toLocaleString('ko-KR')}</div>
-            )}
-          </div>
+        <div className={`p-3 rounded-full ${color}`}>
+          {icon}
         </div>
       </div>
     </Card>
   );
 };
 
+// 실시간 발송 현황 차트 컴포넌트
+const RecentDeliveriesChart: React.FC<{ data: any[] }> = ({ data }) => {
+  return (
+    <Card>
+      <div className="p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">실시간 발송 현황</h3>
+          <p className="text-sm text-gray-600">최근 30분간 메시지 발송 현황</p>
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="time" 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px'
+              }}
+            />
+            <Legend />
+            <Line 
+              type="monotone" 
+              dataKey="total" 
+              stroke="#8b5cf6" 
+              strokeWidth={2}
+              dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+              name="총 발송"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="success" 
+              stroke="#10b981" 
+              strokeWidth={2}
+              dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+              name="성공"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="failed" 
+              stroke="#ef4444" 
+              strokeWidth={2}
+              dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+              name="실패"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+};
+
+// 시간대별 발송 통계 차트 컴포넌트
+const HourlyDeliveriesChart: React.FC<{ data: any[] }> = ({ data }) => {
+  return (
+    <Card>
+      <div className="p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">시간대별 발송 통계</h3>
+          <p className="text-sm text-gray-600">오늘 시간대별 발송 현황</p>
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="hour" 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px'
+              }}
+            />
+            <Legend />
+            <Bar 
+              dataKey="success" 
+              fill="#10b981" 
+              radius={[4, 4, 0, 0]}
+              name="성공"
+            />
+            <Bar 
+              dataKey="failed" 
+              fill="#ef4444" 
+              radius={[4, 4, 0, 0]}
+              name="실패"
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+};
+
 const DeliveriesPage: React.FC = () => {
-  const { deliveries, setDeliveries, addNotification } = useAppStore();
+  const { addNotification } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [recentData, setRecentData] = useState<any[]>([]);
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [summaryStats, setSummaryStats] = useState({
+    total: 0,
+    success: 0,
+    failed: 0,
+    pending: 0
+  });
 
   useEffect(() => {
-    fetchDeliveries();
+    fetchDashboardData();
   }, []);
 
-  const fetchDeliveries = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await deliveryApi.getAll();
-      if (response.data.success) {
-        setDeliveries(response.data.data);
+      
+      // 최근 30분간 5분 단위 데이터
+      const recentResponse = await deliveryApi.getRecentByTimeSlot();
+      if (recentResponse.data.success) {
+        setRecentData(recentResponse.data.data);
       }
+      
+      // 시간대별 통계 데이터
+      const hourlyResponse = await deliveryApi.getHourlyDeliveries();
+      if (hourlyResponse.data.success) {
+        setHourlyData(hourlyResponse.data.data);
+      }
+      
+      // 요약 통계 계산
+      const totalRecent = recentData.reduce((sum, item) => sum + item.total, 0);
+      const successRecent = recentData.reduce((sum, item) => sum + item.success, 0);
+      const failedRecent = recentData.reduce((sum, item) => sum + item.failed, 0);
+      
+      setSummaryStats({
+        total: totalRecent,
+        success: successRecent,
+        failed: failedRecent,
+        pending: totalRecent - successRecent - failedRecent
+      });
+      
     } catch (error) {
-      console.error('Failed to fetch deliveries:', error);
+      console.error('Failed to fetch dashboard data:', error);
       addNotification({
         type: 'error',
-        message: '발송 목록을 불러오는데 실패했습니다.'
+        message: '대시보드 데이터 로드 중 오류가 발생했습니다.'
       });
     } finally {
       setLoading(false);
@@ -111,190 +239,91 @@ const DeliveriesPage: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchDeliveries();
+    await fetchDashboardData();
     setRefreshing(false);
     addNotification({
       type: 'success',
-      message: '발송 목록이 새로고침되었습니다.'
+      message: '데이터가 새로고침되었습니다.'
     });
   };
 
-  const statusCounts = {
-    PENDING: deliveries.filter(d => d.status === 'PENDING').length,
-    SENT: deliveries.filter(d => d.status === 'SENT').length,
-    DELIVERED: deliveries.filter(d => d.status === 'DELIVERED').length,
-    FAILED: deliveries.filter(d => d.status === 'FAILED').length,
-  };
-
-  const totalDeliveries = deliveries.length;
-  const successRate = totalDeliveries > 0 
-    ? ((statusCounts.DELIVERED / totalDeliveries) * 100).toFixed(1)
-    : '0';
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">발송 모니터링</h1>
-            <p className="text-gray-600">실시간 발송 현황을 모니터링하세요</p>
+            <h1 className="text-3xl font-bold text-gray-900">발송 현황</h1>
+            <p className="text-gray-600 mt-1">
+              {new Date().toLocaleDateString('ko-KR', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+              })}
+            </p>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
             onClick={handleRefresh}
-            loading={refreshing}
+            disabled={refreshing}
+            className="flex items-center space-x-2"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            새로고침
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>새로고침</span>
           </Button>
         </div>
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">총 발송</p>
-                <p className="text-2xl font-bold text-gray-900">{totalDeliveries}</p>
-              </div>
-              <div className="p-3 bg-gray-100 rounded-full">
-                <BarChart3 className="h-6 w-6 text-gray-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">대기중</p>
-                <p className="text-2xl font-bold text-yellow-600">{statusCounts.PENDING}</p>
-              </div>
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <Clock className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">발송됨</p>
-                <p className="text-2xl font-bold text-blue-600">{statusCounts.SENT}</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Send className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">전달됨</p>
-                <p className="text-2xl font-bold text-green-600">{statusCounts.DELIVERED}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">실패</p>
-                <p className="text-2xl font-bold text-red-600">{statusCounts.FAILED}</p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <XCircle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="총 발송"
+            value={summaryStats.total.toLocaleString()}
+            change="+8%"
+            changeType="positive"
+            icon={<Send className="h-6 w-6 text-white" />}
+            color="bg-blue-500"
+          />
+          <StatCard
+            title="성공"
+            value={summaryStats.success.toLocaleString()}
+            change="+12%"
+            changeType="positive"
+            icon={<CheckCircle className="h-6 w-6 text-white" />}
+            color="bg-green-500"
+          />
+          <StatCard
+            title="실패"
+            value={summaryStats.failed.toLocaleString()}
+            change="-5%"
+            changeType="negative"
+            icon={<XCircle className="h-6 w-6 text-white" />}
+            color="bg-red-500"
+          />
+          <StatCard
+            title="대기중"
+            value={summaryStats.pending.toLocaleString()}
+            change="+15%"
+            changeType="positive"
+            icon={<Clock className="h-6 w-6 text-white" />}
+            color="bg-orange-500"
+          />
         </div>
 
-        {/* 성공률 차트 */}
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">발송 성공률</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">전달 성공률</span>
-              <span className="text-sm font-medium text-gray-900">{successRate}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-green-600 h-3 rounded-full transition-all duration-500" 
-                style={{ width: `${successRate}%` }}
-              ></div>
-            </div>
-            <div className="grid grid-cols-4 gap-4 text-center text-sm">
-              <div>
-                <p className="font-medium text-yellow-600">{statusCounts.PENDING}</p>
-                <p className="text-gray-500">대기중</p>
-              </div>
-              <div>
-                <p className="font-medium text-blue-600">{statusCounts.SENT}</p>
-                <p className="text-gray-500">발송됨</p>
-              </div>
-              <div>
-                <p className="font-medium text-green-600">{statusCounts.DELIVERED}</p>
-                <p className="text-gray-500">전달됨</p>
-              </div>
-              <div>
-                <p className="font-medium text-red-600">{statusCounts.FAILED}</p>
-                <p className="text-gray-500">실패</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* 발송 목록 */}
-        {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, index) => (
-              <Card key={index}>
-                <div className="animate-pulse">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                      <div>
-                        <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-32"></div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-6 bg-gray-200 rounded"></div>
-                      <div className="text-right">
-                        <div className="h-3 bg-gray-200 rounded w-20 mb-1"></div>
-                        <div className="h-3 bg-gray-200 rounded w-16"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : deliveries.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">발송 내역이 없습니다.</p>
-            </div>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {deliveries.map((delivery, index) => (
-              <motion.div
-                key={delivery.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <DeliveryCard delivery={delivery} />
-              </motion.div>
-            ))}
-          </div>
-        )}
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RecentDeliveriesChart data={recentData} />
+          <HourlyDeliveriesChart data={hourlyData} />
+        </div>
       </div>
     </Layout>
   );

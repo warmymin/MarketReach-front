@@ -19,6 +19,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.50.1",
     "react-kakao-maps": "^0.0.13",
+    "recharts": "^3.1.2",
     "zod": "^3.22.4",
     "zustand": "^4.5.1"
   },

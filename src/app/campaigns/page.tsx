@@ -24,9 +24,11 @@ const CampaignModal: React.FC<{
     message: '',
     description: '',
     status: 'DRAFT' as 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED',
-    targetingLocationId: ''
+    targetingLocationId: '',
+    targetId: ''
   });
   const [targetingLocations, setTargetingLocations] = useState<any[]>([]);
+
   const [loadingLocations, setLoadingLocations] = useState(false);
 
   useEffect(() => {
@@ -36,7 +38,8 @@ const CampaignModal: React.FC<{
         message: campaign.message || '',
         description: campaign.description || '',
         status: campaign.status || 'DRAFT',
-        targetingLocationId: campaign.targetingLocationId?.toString() || ''
+        targetingLocationId: campaign.targetingLocationId?.toString() || '',
+        targetId: ''
       });
     } else {
       setFormData({
@@ -44,35 +47,41 @@ const CampaignModal: React.FC<{
         message: '',
         description: '',
         status: 'DRAFT',
-        targetingLocationId: ''
+        targetingLocationId: '',
+        targetId: ''
       });
     }
   }, [campaign]);
 
-  // 타겟팅 위치 목록 로드
+  // 타겟팅 위치 및 타겟 목록 로드
   useEffect(() => {
-    const fetchTargetingLocations = async () => {
+    const fetchTargetingData = async () => {
       if (isOpen) {
         try {
           setLoadingLocations(true);
-          const response = await fetch('http://localhost:8084/api/targeting-locations');
-          const data = await response.json();
-          if (data.success) {
-            setTargetingLocations(data.data);
+          
+          // 타겟팅 위치 목록 로드
+          const targetingResponse = await fetch('http://localhost:8084/api/targeting-locations');
+          const targetingData = await targetingResponse.json();
+          if (targetingData.success) {
+            setTargetingLocations(targetingData.data);
           }
+          
+
         } catch (error) {
-          console.error('Failed to fetch targeting locations:', error);
+          console.error('Failed to fetch targeting data:', error);
         } finally {
           setLoadingLocations(false);
         }
       }
     };
 
-    fetchTargetingLocations();
+    fetchTargetingData();
   }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     const submitData = {
       ...formData,
       targetingLocationId: formData.targetingLocationId || undefined
@@ -142,7 +151,7 @@ const CampaignModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              타겟팅 위치
+              타겟팅 설정
             </label>
             <select
               value={formData.targetingLocationId}
@@ -150,13 +159,21 @@ const CampaignModal: React.FC<{
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loadingLocations}
             >
-              <option value="">타겟팅 위치를 선택하세요</option>
+              <option value="">타겟팅을 선택하세요</option>
+              
+              {/* 타겟팅 위치 목록 */}
               {targetingLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
+                <option 
+                  key={location.id} 
+                  value={location.id}
+                >
+                  📍 {location.name} (반경: {location.radiusM}m)
                 </option>
               ))}
             </select>
+            {loadingLocations && (
+              <p className="text-sm text-gray-500 mt-1">타겟팅 목록을 불러오는 중...</p>
+            )}
           </div>
 
           <div>
@@ -206,6 +223,7 @@ const CampaignCard: React.FC<{
   onDelete: (id: string) => void;
   onSend: (id: string) => void;
 }> = ({ campaign, onEdit, onDelete, onSend }) => {
+
   const statusColors = {
     DRAFT: 'bg-gray-100 text-gray-800',
     SENDING: 'bg-blue-100 text-blue-800',
@@ -242,7 +260,7 @@ const CampaignCard: React.FC<{
         </div>
         <div className="flex items-center space-x-2">
           {/* 발송 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
-          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && campaign.targetingLocationId && (
+          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && (
             <Button
               size="sm"
               variant="primary"
@@ -280,19 +298,7 @@ const CampaignCard: React.FC<{
             </Button>
           )}
           
-          {/* 타겟팅 위치 필요 */}
-          {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && !campaign.targetingLocationId && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled
-              className="opacity-50 cursor-not-allowed"
-              title="타겟팅 위치를 설정해야 발송할 수 있습니다"
-            >
-              <AlertCircle className="h-4 w-4 mr-1" />
-              타겟팅 필요
-            </Button>
-          )}
+
           
           {/* 수정 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
           {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && (

@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Search, MapPin, Edit, Trash2, Users, X, Map } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, MapPin, Edit, Trash2, Map } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -12,234 +11,10 @@ import { targetingApi } from '@/lib/api';
 import { TargetingLocation } from '@/types';
 import { useRouter } from 'next/navigation';
 
-// 타겟팅 생성/편집 모달 컴포넌트
-const TargetingModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  location?: TargetingLocation | null;
-  onSubmit: (locationData: Partial<TargetingLocation>) => void;
-  loading: boolean;
-}> = ({ isOpen, onClose, location, onSubmit, loading }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    memo: '',
-    centerLat: 37.5665,
-    centerLng: 126.9780,
-    radiusM: 1000
-  });
-
-  useEffect(() => {
-    if (location) {
-      setFormData({
-        name: location.name || '',
-        memo: location.memo || '',
-        centerLat: location.centerLat || 37.5665,
-        centerLng: location.centerLng || 126.9780,
-        radiusM: location.radiusM || 1000
-      });
-    } else {
-      setFormData({
-        name: '',
-        memo: '',
-        centerLat: 37.5665,
-        centerLng: 126.9780,
-        radiusM: 1000
-      });
-    }
-  }, [location]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">
-            {location ? '타겟팅 위치 편집' : '새 타겟팅 위치 생성'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              위치 이름 *
-            </label>
-            <Input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="예: 강남역, 홍대입구 등"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              설명 (선택사항)
-            </label>
-            <textarea
-              value={formData.memo}
-              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-              placeholder="타겟팅 위치에 대한 설명을 입력하세요"
-              className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                위도 *
-              </label>
-              <Input
-                type="number"
-                step="0.000001"
-                value={formData.centerLat}
-                onChange={(e) => setFormData({ ...formData, centerLat: parseFloat(e.target.value) })}
-                placeholder="37.5665"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                경도 *
-              </label>
-              <Input
-                type="number"
-                step="0.000001"
-                value={formData.centerLng}
-                onChange={(e) => setFormData({ ...formData, centerLng: parseFloat(e.target.value) })}
-                placeholder="126.9780"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              반경 (미터) *
-            </label>
-            <Input
-              type="number"
-              min="100"
-              max="50000"
-              value={formData.radiusM}
-              onChange={(e) => setFormData({ ...formData, radiusM: parseInt(e.target.value) })}
-              placeholder="1000"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              최소 100m, 최대 50km까지 설정 가능합니다.
-            </p>
-          </div>
-
-          <div className="flex space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={loading}
-              className="flex-1"
-            >
-              {location ? '수정' : '생성'}
-            </Button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-};
-
-const TargetingCard: React.FC<{
-  location: TargetingLocation;
-  onEdit: (location: TargetingLocation) => void;
-  onDelete: (id: string) => void;
-}> = ({ location, onEdit, onDelete }) => {
-  // 예상 도달 고객 수 계산 (임시)
-  const estimatedReach = Math.floor(Math.random() * 100) + 10;
-
-  return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
-            <MapPin className="h-5 w-5 text-blue-500" />
-            <h3 className="text-lg font-semibold text-gray-900">{location.name}</h3>
-          </div>
-          <p className="text-gray-600 mb-4">{location.memo || '설명이 없습니다.'}</p>
-          
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-gray-500">위치</p>
-              <p className="font-medium">
-                {location.centerLat.toFixed(6)}, {location.centerLng.toFixed(6)}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-500">반경</p>
-              <p className="font-medium">{location.radiusM}m</p>
-            </div>
-            <div>
-              <p className="text-gray-500">예상 도달</p>
-              <div className="flex items-center space-x-1">
-                <Users className="h-4 w-4 text-green-500" />
-                <p className="font-medium text-green-600">{estimatedReach}명</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-gray-500">생성일</p>
-              <p className="font-medium">
-                {new Date(location.createdAt).toLocaleDateString('ko-KR')}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onEdit(location)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onDelete(location.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </Card>
-  );
-};
-
-const TargetingPage: React.FC = () => {
+export default function TargetingPage() {
   const router = useRouter();
   const { targetingLocations, setTargetingLocations, addTargetingLocation, updateTargetingLocation, deleteTargetingLocation, addNotification } = useAppStore();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -247,25 +22,27 @@ const TargetingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchTargetingLocations = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await targetingApi.getAll();
-        if (response.data.success) {
-          setTargetingLocations(response.data.data);
+        
+        // 타겟팅 위치 데이터 가져오기
+        const targetingResponse = await targetingApi.getAll();
+        if (targetingResponse.data.success) {
+          setTargetingLocations(targetingResponse.data.data);
         }
       } catch (error) {
-        console.error('Failed to fetch targeting locations:', error);
+        console.error('Failed to fetch data:', error);
         addNotification({
           type: 'error',
-          message: '타겟팅 위치 목록을 불러오는데 실패했습니다.'
+          message: '데이터를 불러오는데 실패했습니다.'
         });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTargetingLocations();
+    fetchData();
   }, [setTargetingLocations, addNotification]);
 
   const filteredLocations = targetingLocations.filter(location =>
@@ -335,33 +112,39 @@ const TargetingPage: React.FC = () => {
     }
   };
 
-  const totalEstimatedReach = filteredLocations.reduce((total, location) => {
-    return total + (Math.floor(Math.random() * 100) + 10);
-  }, 0);
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">데이터를 불러오는 중...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="p-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">타겟팅 관리</h1>
-            <p className="text-gray-600">위치 기반 타겟팅을 설정하고 관리하세요</p>
+            <h1 className="text-2xl font-bold text-gray-900">타겟팅 관리</h1>
+            <p className="text-gray-600 mt-1">캠페인 발송을 위한 타겟팅 위치를 관리합니다.</p>
           </div>
-          <div className="flex space-x-3">
-            <Button 
-              variant="outline"
+          <div className="flex gap-3">
+            <Button
               onClick={() => router.push('/targeting/map')}
+              className="flex items-center"
             >
               <Map className="h-4 w-4 mr-2" />
               지도에서 생성
             </Button>
-            <Button 
-              variant="primary"
-              onClick={() => {
-                setEditingLocation(null);
-                setModalOpen(true);
-              }}
+            <Button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center"
             >
               <Plus className="h-4 w-4 mr-2" />
               새 타겟팅
@@ -369,111 +152,41 @@ const TargetingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">총 타겟팅 위치</p>
-                <p className="text-2xl font-bold text-gray-900">{filteredLocations.length}</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <MapPin className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">총 예상 도달</p>
-                <p className="text-2xl font-bold text-gray-900">{totalEstimatedReach.toLocaleString()}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">평균 반경</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {filteredLocations.length > 0 
-                    ? (filteredLocations.reduce((sum, loc) => sum + loc.radiusM, 0) / filteredLocations.length).toFixed(0)
-                    : 0}m
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <MapPin className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </Card>
+        {/* 검색 */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="타겟팅 이름으로 검색..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
-        {/* 검색 */}
-        <Card>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="타겟팅 위치 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </Card>
+        {/* 타겟팅 목록 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredLocations.map((location) => (
+            <TargetingCard
+              key={location.id}
+              location={location}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
 
-        {/* 타겟팅 위치 목록 */}
-        {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[...Array(4)].map((_, index) => (
-              <Card key={index}>
-                <div className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : filteredLocations.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-4">타겟팅 위치가 없습니다.</p>
-              <Button 
-                variant="primary"
-                onClick={() => {
-                  setEditingLocation(null);
-                  setModalOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                첫 번째 타겟팅 위치 생성
-              </Button>
-            </div>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredLocations.map((location, index) => (
-              <motion.div
-                key={location.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <TargetingCard
-                  location={location}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </motion.div>
-            ))}
+        {filteredLocations.length === 0 && (
+          <div className="text-center py-12">
+            <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">타겟팅이 없습니다</h3>
+            <p className="text-gray-600 mb-4">새로운 타겟팅을 생성해보세요.</p>
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              첫 번째 타겟팅 생성
+            </Button>
           </div>
         )}
 
@@ -484,13 +197,214 @@ const TargetingPage: React.FC = () => {
             setModalOpen(false);
             setEditingLocation(null);
           }}
-          location={editingLocation}
           onSubmit={handleSubmit}
-          loading={submitting}
+          editingLocation={editingLocation}
+          submitting={submitting}
         />
       </div>
     </Layout>
   );
+}
+
+// 타겟팅 카드 컴포넌트
+const TargetingCard: React.FC<{
+  location: TargetingLocation;
+  onEdit: (location: TargetingLocation) => void;
+  onDelete: (id: string) => void;
+}> = ({ location, onEdit, onDelete }) => {
+  return (
+    <Card>
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center">
+            <MapPin className="h-5 w-5 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">{location.name}</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onEdit(location)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onDelete(location.id)}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        <div className="space-y-2 text-sm text-gray-600">
+          <div className="flex justify-between">
+            <span>위도:</span>
+            <span className="font-medium">{location.centerLat.toFixed(6)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>경도:</span>
+            <span className="font-medium">{location.centerLng.toFixed(6)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>반경:</span>
+            <span className="font-medium">{location.radiusM}m</span>
+          </div>
+          {location.memo && (
+            <div className="pt-2 border-t border-gray-200">
+              <span className="text-gray-500">{location.memo}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="text-xs text-gray-500">
+            생성일: {new Date(location.createdAt).toLocaleDateString()}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 };
 
-export default TargetingPage;
+// 타겟팅 모달 컴포넌트
+const TargetingModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: Partial<TargetingLocation>) => void;
+  editingLocation: TargetingLocation | null;
+  submitting: boolean;
+}> = ({ isOpen, onClose, onSubmit, editingLocation, submitting }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    centerLat: 37.5665,
+    centerLng: 126.9780,
+    radiusM: 1000,
+    memo: ''
+  });
+
+  useEffect(() => {
+    if (editingLocation) {
+      setFormData({
+        name: editingLocation.name,
+        centerLat: editingLocation.centerLat,
+        centerLng: editingLocation.centerLng,
+        radiusM: editingLocation.radiusM,
+        memo: editingLocation.memo || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        centerLat: 37.5665,
+        centerLng: 126.9780,
+        radiusM: 1000,
+        memo: ''
+      });
+    }
+  }, [editingLocation]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-semibold mb-4">
+          {editingLocation ? '타겟팅 수정' : '새 타겟팅 생성'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              타겟팅 이름
+            </label>
+            <Input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="타겟팅 이름을 입력하세요"
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                위도
+              </label>
+              <Input
+                type="number"
+                step="any"
+                value={formData.centerLat}
+                onChange={(e) => setFormData({ ...formData, centerLat: parseFloat(e.target.value) })}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                경도
+              </label>
+              <Input
+                type="number"
+                step="any"
+                value={formData.centerLng}
+                onChange={(e) => setFormData({ ...formData, centerLng: parseFloat(e.target.value) })}
+                required
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              반경 (미터)
+            </label>
+            <Input
+              type="number"
+              value={formData.radiusM}
+              onChange={(e) => setFormData({ ...formData, radiusM: parseInt(e.target.value) })}
+              min="100"
+              max="50000"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              메모
+            </label>
+            <textarea
+              value={formData.memo}
+              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="타겟팅에 대한 메모를 입력하세요"
+            />
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              취소
+            </Button>
+            <Button
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? '저장 중...' : (editingLocation ? '수정' : '생성')}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

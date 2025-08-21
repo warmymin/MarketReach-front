@@ -316,9 +316,16 @@ const DashboardPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [summaryData, setSummaryData] = useState({
     totalCampaigns: 0,
-    totalMessages: 0,
+    totalDeliveries: 0,
+    sentCount: 0,
+    failedCount: 0,
+    pendingCount: 0,
     reachedCustomers: 0,
-    reachRate: 0
+    reachRate: 0,
+    totalChange: 0,
+    successChange: 0,
+    failureChange: 0,
+    pendingChange: 0
   });
   const [hourlyData, setHourlyData] = useState<any[]>([]);
   const [distributionData, setDistributionData] = useState<any[]>([]);
@@ -415,35 +422,35 @@ const DashboardPage: React.FC = () => {
         {/* 요약 지표 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <SummaryCard
-            title="총 캠페인"
-            value={summaryData.totalCampaigns.toLocaleString()}
-            change="+12%"
-            changeType="positive"
-            icon={<Target className="h-6 w-6 text-white" />}
-            color="bg-purple-500"
-          />
-          <SummaryCard
-            title="발송된 메시지"
-            value={summaryData.totalMessages.toLocaleString()}
-            change="+8%"
-            changeType="positive"
+            title="총 발송"
+            value={summaryData.totalDeliveries?.toLocaleString() || '0'}
+            change={`${summaryData.totalChange > 0 ? '+' : ''}${summaryData.totalChange}%`}
+            changeType={summaryData.totalChange >= 0 ? "positive" : "negative"}
             icon={<Send className="h-6 w-6 text-white" />}
             color="bg-blue-500"
           />
           <SummaryCard
-            title="도달한 고객"
-            value={summaryData.reachedCustomers.toLocaleString()}
-            change="+15%"
-            changeType="positive"
+            title="성공"
+            value={summaryData.sentCount?.toLocaleString() || '0'}
+            change={`${summaryData.successChange > 0 ? '+' : ''}${summaryData.successChange}%`}
+            changeType={summaryData.successChange >= 0 ? "positive" : "negative"}
             icon={<Users className="h-6 w-6 text-white" />}
             color="bg-green-500"
           />
           <SummaryCard
-            title="평균 도달률"
-            value={`${summaryData.reachRate}%`}
-            change="+3%"
-            changeType="positive"
+            title="실패"
+            value={summaryData.failedCount?.toLocaleString() || '0'}
+            change={`${summaryData.failureChange > 0 ? '+' : ''}${summaryData.failureChange}%`}
+            changeType={summaryData.failureChange >= 0 ? "negative" : "positive"}
             icon={<TrendingUp className="h-6 w-6 text-white" />}
+            color="bg-red-500"
+          />
+          <SummaryCard
+            title="대기중"
+            value={summaryData.pendingCount?.toLocaleString() || '0'}
+            change={`${summaryData.pendingChange > 0 ? '+' : ''}${summaryData.pendingChange}%`}
+            changeType={summaryData.pendingChange >= 0 ? "positive" : "negative"}
+            icon={<Target className="h-6 w-6 text-white" />}
             color="bg-orange-500"
           />
         </div>

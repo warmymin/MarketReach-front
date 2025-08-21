@@ -76,7 +76,7 @@ const ImageUpload: React.FC<{
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">
-        이미지 첨부 (선택사항)
+        🖼️ 캠페인 이미지 (선택사항)
       </label>
       <p className="text-xs text-gray-500">
         최대 1개, 파일당 5MB 이하의 이미지 파일 (PNG, JPG, GIF 등)
@@ -92,15 +92,18 @@ const ImageUpload: React.FC<{
           <button
             type="button"
             onClick={onImageRemove}
-            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            title="이미지 제거"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       ) : (
         <div
-          className={`border-2 border-dashed rounded-md p-6 text-center transition-colors ${
-            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+          className={`border-2 border-dashed rounded-md p-6 text-center transition-all duration-200 ${
+            isDragging 
+              ? 'border-blue-500 bg-blue-50 scale-105' 
+              : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -114,18 +117,26 @@ const ImageUpload: React.FC<{
             id="image-upload"
             disabled={uploading}
           />
-          <label htmlFor="image-upload" className="cursor-pointer">
+          <label htmlFor="image-upload" className="cursor-pointer block">
             {uploading ? (
-              <div className="space-y-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-sm text-gray-600">업로드 중...</p>
+              <div className="space-y-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 font-medium">이미지 업로드 중...</p>
+                <p className="text-xs text-gray-500">잠시만 기다려주세요</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto" />
-                <p className="text-sm text-gray-600">
-                  클릭하여 업로드 또는 드래그하여 파일을 놓으세요
-                </p>
+              <div className="space-y-3">
+                <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    이미지를 업로드하세요
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    클릭하여 선택하거나 드래그하여 놓으세요
+                  </p>
+                </div>
               </div>
             )}
           </label>
@@ -214,8 +225,11 @@ const CampaignModal: React.FC<{
     
     const submitData = {
       ...formData,
-      targetingLocationId: formData.targetingLocationId || undefined
+      targetingLocationId: formData.targetingLocationId || undefined,
+      imageUrl: formData.imageUrl || undefined,
+      imageAlt: formData.imageAlt || undefined
     };
+    console.log('캠페인 모달에서 전송할 데이터:', submitData); // 디버깅 로그 추가
     onSubmit(submitData);
   };
 
@@ -636,11 +650,17 @@ const CampaignsPage: React.FC = () => {
   // 캠페인 생성/수정
   const handleSubmit = async (campaignData: Partial<Campaign>) => {
     try {
+      console.log('캠페인 저장 데이터:', campaignData); // 디버깅 로그 추가
+      
       if (editingCampaign) {
-        await campaignApi.update(editingCampaign.id, campaignData);
+        console.log('캠페인 수정 중...', editingCampaign.id);
+        const response = await campaignApi.update(editingCampaign.id, campaignData);
+        console.log('캠페인 수정 응답:', response); // 디버깅 로그 추가
         addNotification({ type: 'success', message: '캠페인이 수정되었습니다.' });
       } else {
-        await campaignApi.create(campaignData);
+        console.log('캠페인 생성 중...');
+        const response = await campaignApi.create(campaignData);
+        console.log('캠페인 생성 응답:', response); // 디버깅 로그 추가
         addNotification({ type: 'success', message: '캠페인이 생성되었습니다.' });
       }
       setModalOpen(false);

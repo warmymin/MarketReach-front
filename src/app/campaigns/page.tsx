@@ -2,14 +2,138 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit, Trash2, Send, CheckCircle, AlertCircle, Clock, X } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Send, CheckCircle, AlertCircle, Clock, X, Upload, Image as ImageIcon } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAppStore } from '@/store';
-import { campaignApi } from '@/lib/api';
+import { campaignApi, uploadImage } from '@/lib/api';
 import { Campaign } from '@/types';
+
+// 이미지 업로드 컴포넌트
+const ImageUpload: React.FC<{
+  imageUrl?: string;
+  imageAlt?: string;
+  onImageChange: (url: string, alt: string) => void;
+  onImageRemove: () => void;
+}> = ({ imageUrl, imageAlt, onImageChange, onImageRemove }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const { addNotification } = useAppStore();
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      addNotification({ type: 'error', message: '이미지 파일만 업로드 가능합니다.' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      addNotification({ type: 'error', message: '파일 크기는 5MB를 초과할 수 없습니다.' });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const result = await uploadImage(file);
+      onImageChange(result.url, file.name);
+      addNotification({ type: 'success', message: '이미지가 업로드되었습니다.' });
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      addNotification({ type: 'error', message: '이미지 업로드에 실패했습니다.' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        이미지 첨부 (선택사항)
+      </label>
+      <p className="text-xs text-gray-500">
+        최대 1개, 파일당 5MB 이하의 이미지 파일 (PNG, JPG, GIF 등)
+      </p>
+      
+      {imageUrl ? (
+        <div className="relative">
+          <img
+            src={`http://localhost:8084${imageUrl}`}
+            alt={imageAlt || '캠페인 이미지'}
+            className="w-full h-32 object-cover rounded-md border"
+          />
+          <button
+            type="button"
+            onClick={onImageRemove}
+            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div
+          className={`border-2 border-dashed rounded-md p-6 text-center transition-colors ${
+            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+          }`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="image-upload"
+            disabled={uploading}
+          />
+          <label htmlFor="image-upload" className="cursor-pointer">
+            {uploading ? (
+              <div className="space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-600">업로드 중...</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-8 w-8 text-gray-400 mx-auto" />
+                <p className="text-sm text-gray-600">
+                  클릭하여 업로드 또는 드래그하여 파일을 놓으세요
+                </p>
+              </div>
+            )}
+          </label>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // 캠페인 생성/편집 모달 컴포넌트
 const CampaignModal: React.FC<{
@@ -23,6 +147,8 @@ const CampaignModal: React.FC<{
     name: '',
     message: '',
     description: '',
+    imageUrl: '',
+    imageAlt: '',
     status: 'DRAFT' as 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED',
     targetingLocationId: '',
     targetId: ''
@@ -37,6 +163,8 @@ const CampaignModal: React.FC<{
         name: campaign.name || '',
         message: campaign.message || '',
         description: campaign.description || '',
+        imageUrl: campaign.imageUrl || '',
+        imageAlt: campaign.imageAlt || '',
         status: campaign.status || 'DRAFT',
         targetingLocationId: campaign.targetingLocationId?.toString() || '',
         targetId: ''
@@ -46,6 +174,8 @@ const CampaignModal: React.FC<{
         name: '',
         message: '',
         description: '',
+        imageUrl: '',
+        imageAlt: '',
         status: 'DRAFT',
         targetingLocationId: '',
         targetId: ''
@@ -89,6 +219,14 @@ const CampaignModal: React.FC<{
     onSubmit(submitData);
   };
 
+  const handleImageChange = (url: string, alt: string) => {
+    setFormData({ ...formData, imageUrl: url, imageAlt: alt });
+  };
+
+  const handleImageRemove = () => {
+    setFormData({ ...formData, imageUrl: '', imageAlt: '' });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -96,7 +234,7 @@ const CampaignModal: React.FC<{
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+        className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
@@ -131,11 +269,21 @@ const CampaignModal: React.FC<{
             <textarea
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              placeholder="발송할 메시지를 입력하세요"
+              placeholder="고객에게 전송할 마케팅 메시지를 작성하세요"
               className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               required
             />
+            <div className="text-xs text-gray-500 mt-1">
+              {formData.message.length}/1000자
+            </div>
           </div>
+
+          <ImageUpload
+            imageUrl={formData.imageUrl}
+            imageAlt={formData.imageAlt}
+            onImageChange={handleImageChange}
+            onImageRemove={handleImageRemove}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -242,7 +390,23 @@ const CampaignCard: React.FC<{
 
   return (
     <Card>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start space-x-4">
+        {/* 이미지 섹션 */}
+        <div className="flex-shrink-0 w-32 h-24">
+          {campaign.imageUrl ? (
+            <img
+              src={`http://localhost:8084${campaign.imageUrl}`}
+              alt={campaign.imageAlt || campaign.name}
+              className="w-full h-full object-cover rounded-md"
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center">
+              <ImageIcon className="h-8 w-8 text-gray-400" />
+            </div>
+          )}
+        </div>
+
+        {/* 내용 섹션 */}
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-2">
             <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
@@ -258,6 +422,8 @@ const CampaignCard: React.FC<{
             생성일: {new Date(campaign.createdAt).toLocaleDateString('ko-KR')}
           </div>
         </div>
+
+        {/* 액션 버튼들 */}
         <div className="flex items-center space-x-2">
           {/* 발송 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
           {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && (
@@ -297,8 +463,6 @@ const CampaignCard: React.FC<{
               발송완료
             </Button>
           )}
-          
-
           
           {/* 수정 버튼 - DRAFT 또는 PAUSED 상태에서만 표시 */}
           {(campaign.status === 'DRAFT' || campaign.status === 'PAUSED') && (

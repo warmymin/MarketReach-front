@@ -79,6 +79,25 @@ export const deliveryApi = {
   getHourlyDeliveries: () => api.get<ApiResponse<any>>('/deliveries/hourly'),
 };
 
+// 이미지 업로드 API
+export const uploadImage = async (file: File): Promise<{ url: string; filename: string; originalName: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('http://localhost:8084/api/images/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.message || '이미지 업로드에 실패했습니다.');
+  }
+
+  return data.data;
+};
+
 // 통계 API
 export const statisticsApi = {
   getDashboard: () => api.get<ApiResponse<Statistics>>('/statistics/dashboard'),

@@ -52,9 +52,10 @@ export interface Campaign {
   name: string;
   message: string;
   description?: string;
+  imageUrl?: string;
+  imageAlt?: string;
   status: 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
   targetingLocationId?: string;
-
   companyId?: string;
   createdAt: string;
   updatedAt?: string;

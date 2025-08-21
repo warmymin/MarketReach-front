@@ -84,4 +84,12 @@ export const statisticsApi = {
   getDashboard: () => api.get<ApiResponse<Statistics>>('/statistics/dashboard'),
 };
 
+// 대시보드 API
+export const dashboardApi = {
+  getSummary: () => api.get<ApiResponse<any>>('/dashboard/summary'),
+  getHourlyDeliveries: () => api.get<ApiResponse<any>>('/dashboard/hourly-deliveries'),
+  getCustomerDistribution: () => api.get<ApiResponse<any>>('/dashboard/customer-distribution'),
+  getRecentCampaigns: () => api.get<ApiResponse<any>>('/dashboard/recent-campaigns'),
+};
+
 export default api;

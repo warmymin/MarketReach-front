@@ -8,7 +8,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAppStore } from '@/store';
-import { campaignApi, uploadImage } from '@/lib/api';
+import { campaignApi, uploadImage, targetingApi } from '@/lib/api';
 import { Campaign } from '@/types';
 
 // 이미지 업로드 컴포넌트
@@ -165,6 +165,7 @@ const CampaignModal: React.FC<{
     targetId: ''
   });
   const [targetingLocations, setTargetingLocations] = useState<any[]>([]);
+  const [selectedTargetingCustomers, setSelectedTargetingCustomers] = useState<number>(0);
 
   const [loadingLocations, setLoadingLocations] = useState(false);
 
@@ -239,6 +240,25 @@ const CampaignModal: React.FC<{
 
   const handleImageRemove = () => {
     setFormData({ ...formData, imageUrl: '', imageAlt: '' });
+  };
+
+  // 타겟팅 선택 시 고객 수 조회
+  const handleTargetingChange = async (targetingId: string) => {
+    setFormData({ ...formData, targetingLocationId: targetingId });
+    
+    if (targetingId) {
+      try {
+        const response = await targetingApi.getCustomerCountByTargeting(targetingId);
+        if (response.data.success) {
+          setSelectedTargetingCustomers(response.data.data);
+        }
+      } catch (error) {
+        console.error('타겟팅 고객 수 조회 실패:', error);
+        setSelectedTargetingCustomers(0);
+      }
+    } else {
+      setSelectedTargetingCustomers(0);
+    }
   };
 
   if (!isOpen) return null;
@@ -317,7 +337,7 @@ const CampaignModal: React.FC<{
             </label>
             <select
               value={formData.targetingLocationId}
-              onChange={(e) => setFormData({ ...formData, targetingLocationId: e.target.value })}
+              onChange={(e) => handleTargetingChange(e.target.value)}
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loadingLocations}
             >
@@ -335,6 +355,19 @@ const CampaignModal: React.FC<{
             </select>
             {loadingLocations && (
               <p className="text-sm text-gray-500 mt-1">타겟팅 목록을 불러오는 중...</p>
+            )}
+            {formData.targetingLocationId && selectedTargetingCustomers > 0 && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-900">
+                    예상 발송 대상: {selectedTargetingCustomers.toLocaleString()}명
+                  </span>
+                </div>
+                <p className="text-xs text-blue-700 mt-1">
+                  선택한 타겟팅 위치 내 고객 수입니다.
+                </p>
+              </div>
             )}
           </div>
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAppStore } from '@/store';
 import { 
   Building2, 
   Mail, 
@@ -21,6 +22,7 @@ import Input from '@/components/ui/Input';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+  const { login } = useAppStore();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -67,11 +69,15 @@ const LoginPage: React.FC = () => {
       setIsLoading(true);
       
       try {
-        // 로그인 처리 (지연 없음)
-        console.log('로그인 데이터:', formData);
+        // 로그인 처리
+        const success = await login(formData.email, formData.password);
         
-        // 로그인 성공 시 대시보드로 이동
-        router.push('/');
+        if (success) {
+          // 로그인 성공 시 대시보드로 이동
+          router.push('/');
+        } else {
+          setErrors({ general: '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.' });
+        }
         
       } catch (error) {
         console.error('로그인 실패:', error);

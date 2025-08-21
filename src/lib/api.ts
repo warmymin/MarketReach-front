@@ -48,6 +48,10 @@ export const targetingApi = {
   create: (data: Partial<TargetingLocation>) => api.post<ApiResponse<TargetingLocation>>('/targeting-locations', data),
   update: (id: string, data: Partial<TargetingLocation>) => api.put<ApiResponse<TargetingLocation>>(`/targeting-locations/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/targeting-locations/${id}`),
+  getCustomersByTargeting: (id: string) => api.get<ApiResponse<any>>(`/targeting-locations/${id}/customers`),
+  getCustomerCountByTargeting: (id: string) => api.get<ApiResponse<number>>(`/targeting-locations/${id}/customer-count`),
+  getEstimatedReach: (lat: number, lng: number, radiusM: number) => 
+    api.get<ApiResponse<number>>(`/targeting-locations/estimate-reach?lat=${lat}&lng=${lng}&radiusM=${radiusM}`),
 };
 
 // 타겟 관리 API

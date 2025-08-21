@@ -9,6 +9,7 @@ interface AppState {
   // 로그인 상태
   isLoggedIn: boolean;
   user: { email: string; name?: string } | null;
+  initializeApp: () => void;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   
@@ -63,12 +64,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 로그인 상태
   isLoggedIn: false,
   user: null,
+  
+  // 앱 초기화 (로컬 스토리지에서 로그인 상태 복원)
+  initializeApp: () => {
+    if (typeof window !== 'undefined') {
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      
+      if (isLoggedIn && user) {
+        set({ isLoggedIn: true, user });
+      }
+    }
+  },
   login: async (email: string, password: string) => {
     try {
-      // 실제 로그인 API 호출 (현재는 시뮬레이션)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 로그인 성공 시 상태 업데이트
+      // 로그인 성공 시 상태 업데이트 (지연 제거)
       set({ 
         isLoggedIn: true, 
         user: { email, name: email.split('@')[0] } 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Menu, User, UserPlus, LogOut } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import ToastContainer from './ui/Toast';
 import { useAppStore } from '@/store';
@@ -11,7 +12,19 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { sidebarOpen, toggleSidebar } = useAppStore();
+  const router = useRouter();
+  const { sidebarOpen, toggleSidebar, isLoggedIn, logout, initializeApp } = useAppStore();
+
+  // 앱 초기화 (로그인 상태 복원)
+  useEffect(() => {
+    initializeApp();
+  }, [initializeApp]);
+
+  // 로그아웃 처리
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -37,22 +50,37 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             
             <div className="flex items-center space-x-4">
               {/* 로그인 상태에 따른 버튼 표시 */}
-              <div className="flex items-center space-x-2">
-                <Link
-                  href="/login"
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  로그인
-                </Link>
-                <Link
-                  href="/signup"
-                  className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  회원가입
-                </Link>
-              </div>
+              {isLoggedIn ? (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">
+                    {useAppStore.getState().user?.name || '사용자'}님
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    로그아웃
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href="/login"
+                    className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    로그인
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    회원가입
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </header>

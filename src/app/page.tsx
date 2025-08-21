@@ -33,6 +33,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import HourlyDeliveryChart from '@/components/HourlyDeliveryChart';
 
 // 요약 지표 카드 컴포넌트
 const SummaryCard: React.FC<{
@@ -457,7 +458,7 @@ const DashboardPage: React.FC = () => {
 
         {/* 차트 섹션 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HourlyDeliveriesChart data={hourlyData} />
+          <HourlyDeliveryChart />
           <CustomerDistributionChart data={distributionData} />
         </div>
 

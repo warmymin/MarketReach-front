@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Menu } from 'lucide-react';
+import { Menu, User, UserPlus, LogOut } from 'lucide-react';
+import Link from 'next/link';
 import Sidebar from './Sidebar';
 import ToastContainer from './ui/Toast';
 import { useAppStore } from '@/store';
@@ -35,8 +36,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
-                관리자
+              {/* 로그인 상태에 따른 버튼 표시 */}
+              <div className="flex items-center space-x-2">
+                <Link
+                  href="/login"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  로그인
+                </Link>
+                <Link
+                  href="/signup"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  회원가입
+                </Link>
               </div>
             </div>
           </div>

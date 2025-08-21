@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { 
   Building2, 
   Mail, 
@@ -10,7 +11,8 @@ import {
   Calendar,
   FileText,
   Briefcase,
-  ArrowRight
+  ArrowRight,
+  User
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
@@ -278,6 +280,22 @@ const SignupPage: React.FC = () => {
                     </Button>
                   </div>
                 </form>
+
+                {/* 추가 링크 */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-4">
+                      이미 계정이 있으신가요?
+                    </p>
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      <User className="w-4 h-4 mr-1" />
+                      로그인하기
+                    </Link>
+                  </div>
+                </div>
 
                 {/* 추가 정보 */}
                 <div className="mt-8 pt-6 border-t border-gray-200">

@@ -6,6 +6,12 @@ interface AppState {
   isLoading: boolean;
   setLoading: (loading: boolean) => void;
   
+  // 로그인 상태
+  isLoggedIn: boolean;
+  user: { email: string; name?: string } | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  
   // 통계 데이터
   statistics: Statistics | null;
   setStatistics: (stats: Statistics) => void;
@@ -53,6 +59,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 로딩 상태
   isLoading: false,
   setLoading: (loading) => set({ isLoading: loading }),
+  
+  // 로그인 상태
+  isLoggedIn: false,
+  user: null,
+  login: async (email: string, password: string) => {
+    try {
+      // 실제 로그인 API 호출 (현재는 시뮬레이션)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 로그인 성공 시 상태 업데이트
+      set({ 
+        isLoggedIn: true, 
+        user: { email, name: email.split('@')[0] } 
+      });
+      
+      // 로컬 스토리지에 로그인 상태 저장
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('user', JSON.stringify({ email, name: email.split('@')[0] }));
+      
+      return true;
+    } catch (error) {
+      console.error('로그인 실패:', error);
+      return false;
+    }
+  },
+  logout: () => {
+    set({ isLoggedIn: false, user: null });
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+  },
   
   // 통계 데이터
   statistics: null,

@@ -21,7 +21,6 @@ const navigation = [
   { name: '고객', href: '/customers', icon: Users },
   { name: '발송 모니터링', href: '/deliveries', icon: BarChart3 },
   { name: '설정', href: '/settings', icon: Settings },
-  { name: '회원가입', href: '/signup', icon: UserPlus },
 ];
 
 const Sidebar: React.FC = () => {

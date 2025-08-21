@@ -109,6 +109,8 @@ export const dashboardApi = {
   getHourlyDeliveries: () => api.get<ApiResponse<any>>('/dashboard/hourly-deliveries'),
   getCustomerDistribution: () => api.get<ApiResponse<any>>('/dashboard/customer-distribution'),
   getRecentCampaigns: () => api.get<ApiResponse<any>>('/dashboard/recent-campaigns'),
+  getTodayHourlyStats: () => api.get<ApiResponse<any>>('/deliveries/today-hourly-stats'),
+  getRecentHourlyStats: () => api.get<ApiResponse<any>>('/deliveries/recent-hourly-stats'),
 };
 
 export default api;

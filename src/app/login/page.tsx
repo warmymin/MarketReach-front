@@ -67,9 +67,7 @@ const LoginPage: React.FC = () => {
       setIsLoading(true);
       
       try {
-        // 로그인 시뮬레이션 (1초 대기)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        // 로그인 처리 (지연 없음)
         console.log('로그인 데이터:', formData);
         
         // 로그인 성공 시 대시보드로 이동

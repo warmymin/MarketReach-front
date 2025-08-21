@@ -94,10 +94,8 @@ const HourlyDeliveryChart: React.FC<HourlyDeliveryChartProps> = ({
       console.error('데이터 새로고침 실패:', error);
     }
     
-    // 새로고침 애니메이션을 위한 지연
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 500);
+    // 즉시 로딩 상태 해제
+    setIsRefreshing(false);
   };
 
   useEffect(() => {

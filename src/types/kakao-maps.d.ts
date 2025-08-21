@@ -2,6 +2,8 @@ declare global {
   interface Window {
     kakao: any;
   }
+  
+  const kakao: any;
 }
 
 export interface KakaoMap {
@@ -47,7 +49,8 @@ export interface KakaoCircle {
 
 export interface KakaoGeocoder {
   coord2Address: (
-    coord: KakaoLatLng,
+    lng: number,
+    lat: number,
     callback: (result: any, status: string) => void
   ) => void;
 }

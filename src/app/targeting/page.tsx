@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, MapPin, Edit, Trash2, Users, X } from 'lucide-react';
+import { Plus, Search, MapPin, Edit, Trash2, Users, X, Map } from 'lucide-react';
 import Layout from '@/components/Layout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import Input from '@/components/ui/Input';
 import { useAppStore } from '@/store';
 import { targetingApi } from '@/lib/api';
 import { TargetingLocation } from '@/types';
+import { useRouter } from 'next/navigation';
 
 // 타겟팅 생성/편집 모달 컴포넌트
 const TargetingModal: React.FC<{
@@ -237,6 +238,7 @@ const TargetingCard: React.FC<{
 };
 
 const TargetingPage: React.FC = () => {
+  const router = useRouter();
   const { targetingLocations, setTargetingLocations, addTargetingLocation, updateTargetingLocation, deleteTargetingLocation, addNotification } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -346,16 +348,25 @@ const TargetingPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">타겟팅 관리</h1>
             <p className="text-gray-600">위치 기반 타겟팅을 설정하고 관리하세요</p>
           </div>
-          <Button 
-            variant="primary"
-            onClick={() => {
-              setEditingLocation(null);
-              setModalOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            새 타겟팅
-          </Button>
+          <div className="flex space-x-3">
+            <Button 
+              variant="outline"
+              onClick={() => router.push('/targeting/map')}
+            >
+              <Map className="h-4 w-4 mr-2" />
+              지도에서 생성
+            </Button>
+            <Button 
+              variant="primary"
+              onClick={() => {
+                setEditingLocation(null);
+                setModalOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              새 타겟팅
+            </Button>
+          </div>
         </div>
 
         {/* 통계 카드 */}
